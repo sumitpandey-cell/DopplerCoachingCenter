@@ -20,6 +20,8 @@ const config: Config = {
         sm: 'calc(var(--radius) - 4px)',
       },
       colors: {
+        'coaching-blue': 'hsl(var(--coaching-blue))',
+        'coaching-blue-light': 'hsl(var(--coaching-blue-light))',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         card: {
@@ -31,9 +33,9 @@ const config: Config = {
           foreground: 'hsl(var(--popover-foreground))',
         },
         primary: {
-          DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))',
-        },
+					DEFAULT: 'hsl(214.3 83.2% 51.8%)',
+					foreground: 'hsl(var(--primary-foreground))'
+				},
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',
           foreground: 'hsl(var(--secondary-foreground))',

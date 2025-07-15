@@ -3,6 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import AdminLoginButton from '@/components/AdminLoginButton';
 import { GraduationCap, Users, BookOpen, TrendingUp, Bell, Award } from 'lucide-react';
+import WhyChooseUs from '@/components/Home/WhyChooseUs';
+import OurTopCourses from '@/components/Home/OurTopCourses';
+import Toppers from '@/components/Home/Toppers';
+import Testimonials from '@/components/Home/Testimonials';
+import Gallery from '@/components/Home/Gallery';
+
 
 export default function Home() {
   return (
@@ -29,9 +35,7 @@ export default function Home() {
             <Button asChild size="lg" className="text-lg px-8 py-3">
               <Link href="/login/student">Student Portal</Link>
             </Button>
-            <Button asChild size="lg" variant="secondary" className="text-lg px-8 py-3">
-              <Link href="/join">Join Now</Link>
-            </Button>
+            
             <Button asChild variant="outline" size="lg" className="text-lg px-8 py-3">
               <Link href="/login/faculty">Faculty Portal</Link>
             </Button>
@@ -54,7 +58,7 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
+      {/* <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
@@ -128,7 +132,23 @@ export default function Home() {
             </Card>
           </div>
         </div>
-      </section>
+      </section> */}
+      {/* Why Choose Us Section */}
+        <WhyChooseUs/>
+
+      {/* Our Top Courses Section */}
+       <OurTopCourses />
+
+      {/* Toppers Section */}
+      <Toppers/>
+
+      {/* Testimonials Section */}
+      <Testimonials/>
+
+      {/* Gallery Section */}
+      <Gallery />
+        
+      
 
       {/* CTA Section */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-blue-600">
