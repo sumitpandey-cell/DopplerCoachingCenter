@@ -36,6 +36,7 @@ const navigation = [
       { name: 'Students', href: '/admin/students', icon: Users },
       { name: 'Faculty', href: '/admin/faculty', icon: UserCheck },
       { name: 'Student Enquiries', href: '/admin/enquiries', icon: FileText },
+      { name: 'Faculty Enquiries', href: '/admin/faculty-enquiries', icon: UserCheck },
     ]
   },
   {

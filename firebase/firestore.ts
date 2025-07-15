@@ -96,6 +96,38 @@ export interface StudentAccount {
   createdAt: Date;
   enquiryId: string;
   isActive: boolean;
+  hasSignedUp: boolean;
+  signedUpAt?: Date;
+}
+
+export interface FacultyEnquiry {
+  id?: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  qualification: string;
+  experience: string;
+  subjects: string;
+  previousInstitution: string;
+  notes: string;
+  submittedAt: Date;
+  status: 'pending' | 'id_generated' | 'approved' | 'rejected';
+  facultyId?: string;
+}
+
+export interface FacultyAccount {
+  facultyId: string;
+  email: string;
+  fullName: string;
+  phone: string;
+  qualification: string;
+  subjects: string[];
+  role: 'faculty';
+  createdAt: Date;
+  enquiryId: string;
+  isActive: boolean;
+  hasSignedUp: boolean;
+  signedUpAt?: Date;
 }
 
 // Study Materials
@@ -244,7 +276,8 @@ export const generateStudentAccount = async (accountData: Omit<StudentAccount, '
   await setDoc(docRef, {
     ...accountData,
     createdAt: Timestamp.fromDate(new Date()),
-    isActive: true
+    isActive: true,
+    hasSignedUp: false
   });
   return accountData.studentId;
 };
@@ -259,6 +292,65 @@ export const getStudentByStudentId = async (studentId: string): Promise<StudentA
       ...data,
       createdAt: data.createdAt.toDate()
     } as StudentAccount;
+  }
+  return null;
+};
+
+// Faculty Enquiries
+export const addFacultyEnquiry = async (enquiry: Omit<FacultyEnquiry, 'id'>) => {
+  const docRef = await addDoc(collection(db, 'facultyEnquiries'), {
+    ...enquiry,
+    submittedAt: Timestamp.fromDate(enquiry.submittedAt)
+  });
+  return docRef.id;
+};
+
+export const getFacultyEnquiries = async (): Promise<FacultyEnquiry[]> => {
+  const querySnapshot = await getDocs(
+    query(collection(db, 'facultyEnquiries'), orderBy('submittedAt', 'desc'))
+  );
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+    submittedAt: doc.data().submittedAt.toDate()
+  })) as FacultyEnquiry[];
+};
+
+export const updateFacultyEnquiryStatus = async (
+  enquiryId: string, 
+  status: FacultyEnquiry['status'], 
+  facultyId?: string
+) => {
+  const docRef = doc(db, 'facultyEnquiries', enquiryId);
+  const updateData: any = { status };
+  if (facultyId) {
+    updateData.facultyId = facultyId;
+  }
+  await updateDoc(docRef, updateData);
+};
+
+export const generateFacultyAccount = async (accountData: Omit<FacultyAccount, 'createdAt' | 'isActive' | 'hasSignedUp'>) => {
+  const docRef = doc(db, 'facultyAccounts', accountData.facultyId);
+  await setDoc(docRef, {
+    ...accountData,
+    createdAt: Timestamp.fromDate(new Date()),
+    isActive: true,
+    hasSignedUp: false
+  });
+  return accountData.facultyId;
+};
+
+export const getFacultyByFacultyId = async (facultyId: string): Promise<FacultyAccount | null> => {
+  const docRef = doc(db, 'facultyAccounts', facultyId);
+  const docSnap = await getDoc(docRef);
+  
+  if (docSnap.exists()) {
+    const data = docSnap.data();
+    return {
+      ...data,
+      createdAt: data.createdAt.toDate(),
+      signedUpAt: data.signedUpAt ? data.signedUpAt.toDate() : undefined
+    } as FacultyAccount;
   }
   return null;
 };

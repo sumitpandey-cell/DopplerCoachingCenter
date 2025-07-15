@@ -1,5 +1,5 @@
-import AuthForm from '@/components/AuthForm';
+import FacultyLoginForm from '@/components/FacultyLoginForm';
 
 export default function FacultyLogin() {
-  return <AuthForm role="faculty" showSignup={true} />;
+  return <FacultyLoginForm />;
 }

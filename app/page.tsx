@@ -36,6 +36,20 @@ export default function Home() {
               <Link href="/login/faculty">Faculty Portal</Link>
             </Button>
           </div>
+          
+          <div className="mt-6 flex flex-col sm:flex-row gap-2 justify-center text-sm">
+            <Link href="/join/faculty" className="text-green-600 hover:underline">
+              Apply as Faculty
+            </Link>
+            <span className="hidden sm:inline text-gray-400">•</span>
+            <Link href="/signup/student" className="text-blue-600 hover:underline">
+              Student Signup
+            </Link>
+            <span className="hidden sm:inline text-gray-400">•</span>
+            <Link href="/signup/faculty" className="text-green-600 hover:underline">
+              Faculty Signup
+            </Link>
+          </div>
         </div>
       </section>
 

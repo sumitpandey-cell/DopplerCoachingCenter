@@ -106,7 +106,72 @@ export const logEmailDelivery = async (emailData: {
   status: 'sent' | 'failed';
   timestamp: Date;
   studentId?: string;
+  facultyId?: string;
 }) => {
   // In production, store email logs in Firestore
   console.log('Email delivery log:', emailData);
+};
+
+interface FacultyIdEmailData {
+  facultyName: string;
+  facultyEmail: string;
+  facultyId: string;
+  password: string;
+}
+
+export const sendFacultyIdEmail = async (data: FacultyIdEmailData): Promise<void> => {
+  try {
+    // For demo purposes, we'll simulate email sending
+    console.log('Sending Faculty ID email:', {
+      to: data.facultyEmail,
+      subject: 'Your Doppler Coaching Faculty ID',
+      content: `
+        Dear ${data.facultyName},
+        
+        Welcome to Doppler Coaching Center!
+        
+        Your Faculty ID has been generated successfully:
+        
+        Faculty ID: ${data.facultyId}
+        Temporary Password: ${data.password}
+        
+        You can now sign up for your faculty portal at:
+        ${typeof window !== 'undefined' ? window.location.origin : 'https://dopplercoaching.com'}/signup/faculty
+        
+        After signing up, you can login at:
+        ${typeof window !== 'undefined' ? window.location.origin : 'https://dopplercoaching.com'}/login/faculty
+        
+        Please keep your Faculty ID secure and change your password after first login.
+        
+        Best regards,
+        Doppler Coaching Team
+      `
+    });
+    
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Log successful email delivery
+    await logEmailDelivery({
+      recipientEmail: data.facultyEmail,
+      subject: 'Your Doppler Coaching Faculty ID',
+      status: 'sent',
+      timestamp: new Date(),
+      facultyId: data.facultyId
+    });
+    
+  } catch (error) {
+    console.error('Failed to send faculty email:', error);
+    
+    // Log failed email delivery
+    await logEmailDelivery({
+      recipientEmail: data.facultyEmail,
+      subject: 'Your Doppler Coaching Faculty ID',
+      status: 'failed',
+      timestamp: new Date(),
+      facultyId: data.facultyId
+    });
+    
+    throw new Error('Failed to send email notification');
+  }
 };

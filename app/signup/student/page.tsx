@@ -2,17 +2,17 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signUpWithFacultyId } from '@/firebase/auth';
+import { signUpWithStudentId } from '@/firebase/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { UserCheck, User, Lock, Eye, EyeOff } from 'lucide-react';
+import { GraduationCap, User, Lock, Eye, EyeOff } from 'lucide-react';
 
-export default function FacultySignup() {
+export default function StudentSignup() {
   const [formData, setFormData] = useState({
-    facultyId: '',
+    studentId: '',
     password: '',
     confirmPassword: '',
   });
@@ -45,8 +45,8 @@ export default function FacultySignup() {
     setError('');
 
     try {
-      await signUpWithFacultyId(formData.facultyId, formData.password);
-      router.push('/faculty/dashboard');
+      await signUpWithStudentId(formData.studentId, formData.password);
+      router.push('/student/dashboard');
     } catch (error: any) {
       setError(error.message || 'Failed to create account');
     } finally {
@@ -55,36 +55,36 @@ export default function FacultySignup() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 p-3 bg-green-100 rounded-full w-fit">
-            <UserCheck className="h-8 w-8 text-green-600" />
+          <div className="mx-auto mb-4 p-3 bg-blue-100 rounded-full w-fit">
+            <GraduationCap className="h-8 w-8 text-blue-600" />
           </div>
-          <CardTitle className="text-2xl font-bold">Faculty Signup</CardTitle>
+          <CardTitle className="text-2xl font-bold">Student Signup</CardTitle>
           <CardDescription>
-            Create your account using your Faculty ID
+            Create your account using your Student ID
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="facultyId">Faculty ID</Label>
+              <Label htmlFor="studentId">Student ID</Label>
               <div className="relative mt-1">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
-                  id="facultyId"
-                  name="facultyId"
+                  id="studentId"
+                  name="studentId"
                   type="text"
-                  value={formData.facultyId}
+                  value={formData.studentId}
                   onChange={handleInputChange}
-                  placeholder="Enter your Faculty ID (e.g., FAC001)"
+                  placeholder="Enter your Student ID (e.g., DPLR24001)"
                   required
                   className="pl-10"
                 />
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Use the Faculty ID provided by admin
+                Use the Student ID provided by admin
               </p>
             </div>
             
@@ -162,12 +162,12 @@ export default function FacultySignup() {
           <div className="mt-6 text-center space-y-2">
             <p className="text-sm text-gray-600">
               Already have an account?{' '}
-              <a href="/login/faculty" className="text-green-600 hover:underline">
+              <a href="/login/student" className="text-blue-600 hover:underline">
                 Sign in here
               </a>
             </p>
             <p className="text-xs text-gray-500">
-              Don't have a Faculty ID? Contact admin or apply for a position
+              Don't have a Student ID? Contact admin or apply for admission
             </p>
           </div>
         </CardContent>

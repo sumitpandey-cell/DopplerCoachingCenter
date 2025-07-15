@@ -67,7 +67,7 @@ const Navbar = () => {
                 <Button variant="ghost" asChild>
                   <Link href="/login/faculty">Faculty Login</Link>
                 </Button>
-                <Button variant="outline" asChild>
+                <Button variant="outline" size="sm" asChild>
                   <Link href="/join">Join Now</Link>
                 </Button>
               </div>
