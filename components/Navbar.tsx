@@ -61,12 +61,7 @@ const Navbar = () => {
               </DropdownMenu>
             ) : (
               <div className="flex items-center space-x-2">
-                <Button variant="ghost" asChild>
-                  <Link href="/login/student">Student Login</Link>
-                </Button>
-                <Button variant="ghost" asChild>
-                  <Link href="/login/faculty">Faculty Login</Link>
-                </Button>
+               
                 <Button variant="outline" size="sm" asChild>
                   <Link href="/join">Join Now</Link>
                 </Button>
