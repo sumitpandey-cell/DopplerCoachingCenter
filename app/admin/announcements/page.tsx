@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { getAnnouncements, Announcement } from '@/firebase/firestore';
+import { getAnnouncements, addAnnouncement, Announcement } from '@/firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -61,15 +61,21 @@ export default function AdminAnnouncements() {
     setFilteredAnnouncements(filtered);
   }, [announcements, searchTerm, priorityFilter]);
 
-  const handleAddAnnouncement = () => {
-    const announcement: Announcement = {
-      id: `ANN${Date.now()}`,
+  const handleAddAnnouncement = async () => {
+    const announcement: Omit<Announcement, 'id'> = {
       ...newAnnouncement,
       createdBy: 'Admin',
       createdAt: new Date(),
     };
-
-    setAnnouncements(prev => [announcement, ...prev]);
+    try {
+      await addAnnouncement(announcement); // Save to Firestore
+      // Refetch announcements from Firestore
+      const data = await getAnnouncements();
+      setAnnouncements(data);
+      setFilteredAnnouncements(data);
+    } catch (error) {
+      console.error('Error adding announcement:', error);
+    }
     setNewAnnouncement({
       title: '',
       content: '',

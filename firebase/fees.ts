@@ -70,7 +70,9 @@ export const getStudentFees = async (studentId: string) => {
     where('studentId', '==', studentId),
     orderBy('dueDate', 'asc')
   );
+  console.log(q)
   const querySnapshot = await getDocs(q);
+  console.log("999999999",querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
@@ -90,8 +92,17 @@ type FeePayment = {
 };
 
 export const createFeePayment = async (payment: Omit<FeePayment, 'id' | 'createdAt'>) => {
+  // Fetch the related StudentFee to get the subject
+  const studentFeeRef = doc(db, 'studentFees', payment.studentFeeId);
+  const studentFeeSnap = await getDoc(studentFeeRef);
+  let subject = '';
+  if (studentFeeSnap.exists()) {
+    const feeData = studentFeeSnap.data();
+    subject = feeData.subject || feeData.course || '';
+  }
   const docRef = await addDoc(collection(db, 'feePayments'), {
     ...payment,
+    subject, // Store the subject
     createdAt: Timestamp.now()
   });
   // Update student fee status

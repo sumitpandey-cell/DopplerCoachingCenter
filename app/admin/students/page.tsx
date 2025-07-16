@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { getDocs, collection } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { addStudent, updateStudent, deleteStudent, restoreStudent } from '@/firebase/firestore';
+import { getSubjects, Subject } from '@/firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ interface Student {
   status: 'active' | 'inactive' | 'graduated';
   totalTests: number;
   averageScore: number;
+  subjects: string[]; // Add subjects field
 }
 
 export default function AdminStudents() {
@@ -37,43 +39,59 @@ export default function AdminStudents() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [inactiveStudents, setInactiveStudents] = useState<Student[]>([]);
-  const [courseFilter, setCourseFilter] = useState('all');
-  const [batchFilter, setBatchFilter] = useState('all');
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [subjectFilter, setSubjectFilter] = useState('all');
 
-  const COURSE_OPTIONS = [
-    'JEE Main & Advanced',
-    'NEET',
-    'Class 11th Science',
-    'Class 12th Science',
-    'Maths',
-    'Physics',
-    'Chemistry',
-    'Biology',
-  ];
-  const BATCH_OPTIONS = [
-    'Morning',
-    'Afternoon',
-    'Evening',
-  ];
-
+  // In newStudent state, remove 'courses' and only keep 'subjects' and 'batches'
   const [newStudent, setNewStudent] = useState({
     name: '',
     email: '',
     phone: '',
     studentId: '',
-    courses: [],
-    batches: [],
     status: 'active' as const,
+    subjects: [] as string[],
   });
 
   useEffect(() => {
     const fetchStudents = async () => {
       try {
         const snap = await getDocs(collection(db, 'studentAccounts'));
-        const studentsArray = snap.docs.map(doc => doc.data()).filter((s: any) => s.isActive !== false);
+        const studentsArray = snap.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.fullName || data.name || '',
+            email: data.email || '',
+            phone: data.phone || '',
+            studentId: data.studentId || '',
+            course: data.course || '',
+            batch: data.batch || '',
+            joinDate: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt) : new Date(),
+            status: data.status || 'active',
+            totalTests: data.totalTests || 0,
+            averageScore: data.averageScore || 0,
+            subjects: Array.isArray(data.subjects) ? data.subjects : [],
+          } as Student;
+        }).filter((s: any) => s.status !== 'inactive');
         setStudents(studentsArray);
         setFilteredStudents(studentsArray);
-        const inactiveArray = snap.docs.map(doc => doc.data()).filter((s: any) => s.isActive === false);
+        const inactiveArray = snap.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.fullName || data.name || '',
+            email: data.email || '',
+            phone: data.phone || '',
+            studentId: data.studentId || '',
+            course: data.course || '',
+            batch: data.batch || '',
+            joinDate: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt) : new Date(),
+            status: data.status || 'active',
+            totalTests: data.totalTests || 0,
+            averageScore: data.averageScore || 0,
+            subjects: Array.isArray(data.subjects) ? data.subjects : [],
+          } as Student;
+        }).filter((s: any) => s.status === 'inactive');
         setInactiveStudents(inactiveArray);
       } catch (error) {
         console.error('Error fetching students:', error);
@@ -82,6 +100,18 @@ export default function AdminStudents() {
       }
     };
     fetchStudents();
+  }, []);
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const data = await getSubjects();
+        setSubjects(data);
+      } catch (error) {
+        // Optionally handle error
+      }
+    };
+    fetchSubjects();
   }, []);
 
   useEffect(() => {
@@ -99,16 +129,12 @@ export default function AdminStudents() {
       filtered = filtered.filter(student => student.status === statusFilter);
     }
 
-    if (courseFilter !== 'all') {
-      filtered = filtered.filter(student => Array.isArray(student.courses) && student.courses.includes(courseFilter));
-    }
-
-    if (batchFilter !== 'all') {
-      filtered = filtered.filter(student => Array.isArray(student.batches) && student.batches.includes(batchFilter));
+    if (subjectFilter !== 'all') {
+      filtered = filtered.filter(student => Array.isArray(student.subjects) && student.subjects.includes(subjectFilter));
     }
 
     setFilteredStudents(filtered);
-  }, [students, searchTerm, statusFilter, courseFilter, batchFilter]);
+  }, [students, searchTerm, statusFilter, subjectFilter]);
 
   const handleAddStudent = async () => {
     const student = {
@@ -124,23 +150,54 @@ export default function AdminStudents() {
       email: '',
       phone: '',
       studentId: '',
-      courses: [],
-      batches: [],
       status: 'active',
+      subjects: [],
     });
     setShowAddModal(false);
     // Refresh students
     const snap = await getDocs(collection(db, 'studentAccounts'));
-    const studentsArray = snap.docs.map(doc => doc.data()).filter((s: any) => s.isActive !== false);
+    const studentsArray = snap.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.fullName || data.name || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        studentId: data.studentId || '',
+        course: data.course || '',
+        batch: data.batch || '',
+        joinDate: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt) : new Date(),
+        status: data.status || 'active',
+        totalTests: data.totalTests || 0,
+        averageScore: data.averageScore || 0,
+        subjects: Array.isArray(data.subjects) ? data.subjects : [],
+      } as Student;
+    }).filter((s: any) => s.status !== 'inactive');
     setStudents(studentsArray);
     setFilteredStudents(studentsArray);
     // Also refresh inactive students
-    const inactiveArray = snap.docs.map(doc => doc.data()).filter((s: any) => s.isActive === false);
+    const inactiveArray = snap.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.fullName || data.name || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        studentId: data.studentId || '',
+        course: data.course || '',
+        batch: data.batch || '',
+        joinDate: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt) : new Date(),
+        status: data.status || 'active',
+        totalTests: data.totalTests || 0,
+        averageScore: data.averageScore || 0,
+        subjects: Array.isArray(data.subjects) ? data.subjects : [],
+      } as Student;
+    }).filter((s: any) => s.status === 'inactive');
     setInactiveStudents(inactiveArray);
   };
 
   const handleEditStudent = (student: Student) => {
-    setEditingStudent({ ...student, courses: student.courses || [], batches: student.batches || [] });
+    setEditingStudent({ ...student, subjects: student.subjects || [] });
   };
 
   const handleUpdateStudent = async () => {
@@ -150,11 +207,43 @@ export default function AdminStudents() {
     setEditingStudent(null);
     // Refresh students
     const snap = await getDocs(collection(db, 'studentAccounts'));
-    const studentsArray = snap.docs.map(doc => doc.data()).filter((s: any) => s.isActive !== false);
+    const studentsArray = snap.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.fullName || data.name || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        studentId: data.studentId || '',
+        course: data.course || '',
+        batch: data.batch || '',
+        joinDate: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt) : new Date(),
+        status: data.status || 'active',
+        totalTests: data.totalTests || 0,
+        averageScore: data.averageScore || 0,
+        subjects: Array.isArray(data.subjects) ? data.subjects : [],
+      } as Student;
+    }).filter((s: any) => s.status !== 'inactive');
     setStudents(studentsArray);
     setFilteredStudents(studentsArray);
     // Also refresh inactive students
-    const inactiveArray = snap.docs.map(doc => doc.data()).filter((s: any) => s.isActive === false);
+    const inactiveArray = snap.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.fullName || data.name || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        studentId: data.studentId || '',
+        course: data.course || '',
+        batch: data.batch || '',
+        joinDate: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt) : new Date(),
+        status: data.status || 'active',
+        totalTests: data.totalTests || 0,
+        averageScore: data.averageScore || 0,
+        subjects: Array.isArray(data.subjects) ? data.subjects : [],
+      } as Student;
+    }).filter((s: any) => s.status === 'inactive');
     setInactiveStudents(inactiveArray);
   };
 
@@ -163,11 +252,43 @@ export default function AdminStudents() {
       await deleteStudent(studentId);
       // Refresh students
       const snap = await getDocs(collection(db, 'studentAccounts'));
-      const studentsArray = snap.docs.map(doc => doc.data()).filter((s: any) => s.isActive !== false);
+      const studentsArray = snap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.fullName || data.name || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          studentId: data.studentId || '',
+          course: data.course || '',
+          batch: data.batch || '',
+          joinDate: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt) : new Date(),
+          status: data.status || 'active',
+          totalTests: data.totalTests || 0,
+          averageScore: data.averageScore || 0,
+          subjects: Array.isArray(data.subjects) ? data.subjects : [],
+        } as Student;
+      }).filter((s: any) => s.status !== 'inactive');
       setStudents(studentsArray);
       setFilteredStudents(studentsArray);
       // Also refresh inactive students
-      const inactiveArray = snap.docs.map(doc => doc.data()).filter((s: any) => s.isActive === false);
+      const inactiveArray = snap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.fullName || data.name || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          studentId: data.studentId || '',
+          course: data.course || '',
+          batch: data.batch || '',
+          joinDate: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt) : new Date(),
+          status: data.status || 'active',
+          totalTests: data.totalTests || 0,
+          averageScore: data.averageScore || 0,
+          subjects: Array.isArray(data.subjects) ? data.subjects : [],
+        } as Student;
+      }).filter((s: any) => s.status === 'inactive');
       setInactiveStudents(inactiveArray);
     }
   };
@@ -176,10 +297,42 @@ export default function AdminStudents() {
     await restoreStudent(studentId);
     // Refresh students
     const snap = await getDocs(collection(db, 'studentAccounts'));
-    const studentsArray = snap.docs.map(doc => doc.data()).filter((s: any) => s.isActive !== false);
+    const studentsArray = snap.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.fullName || data.name || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        studentId: data.studentId || '',
+        course: data.course || '',
+        batch: data.batch || '',
+        joinDate: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt) : new Date(),
+        status: data.status || 'active',
+        totalTests: data.totalTests || 0,
+        averageScore: data.averageScore || 0,
+        subjects: Array.isArray(data.subjects) ? data.subjects : [],
+      } as Student;
+    }).filter((s: any) => s.status !== 'inactive');
     setStudents(studentsArray);
     setFilteredStudents(studentsArray);
-    const inactiveArray = snap.docs.map(doc => doc.data()).filter((s: any) => s.isActive === false);
+    const inactiveArray = snap.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.fullName || data.name || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        studentId: data.studentId || '',
+        course: data.course || '',
+        batch: data.batch || '',
+        joinDate: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt) : new Date(),
+        status: data.status || 'active',
+        totalTests: data.totalTests || 0,
+        averageScore: data.averageScore || 0,
+        subjects: Array.isArray(data.subjects) ? data.subjects : [],
+      } as Student;
+    }).filter((s: any) => s.status === 'inactive');
     setInactiveStudents(inactiveArray);
   };
 
@@ -270,41 +423,21 @@ export default function AdminStudents() {
                   />
                 </div>
                 <div>
-                  <Label>Courses</Label>
+                  <Label>Subjects</Label>
                   <div className="flex flex-wrap gap-2">
-                    {COURSE_OPTIONS.map(option => (
-                      <label key={option} className="flex items-center gap-1">
+                    {subjects.map(subject => (
+                      <label key={subject.id} className="flex items-center gap-1">
                         <input
                           type="checkbox"
-                          checked={newStudent.courses.includes(option)}
+                          checked={newStudent.subjects.includes(subject.name)}
                           onChange={e => setNewStudent(prev => ({
                             ...prev,
-                            courses: e.target.checked
-                              ? [...prev.courses, option]
-                              : prev.courses.filter(c => c !== option)
+                            subjects: e.target.checked
+                              ? [...prev.subjects, subject.name]
+                              : prev.subjects.filter(s => s !== subject.name)
                           }))}
                         />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <Label>Batches</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {BATCH_OPTIONS.map(option => (
-                      <label key={option} className="flex items-center gap-1">
-                        <input
-                          type="checkbox"
-                          checked={newStudent.batches.includes(option)}
-                          onChange={e => setNewStudent(prev => ({
-                            ...prev,
-                            batches: e.target.checked
-                              ? [...prev.batches, option]
-                              : prev.batches.filter(b => b !== option)
-                          }))}
-                        />
-                        {option}
+                        {subject.name}
                       </label>
                     ))}
                   </div>
@@ -340,23 +473,13 @@ export default function AdminStudents() {
           <option value="graduated">Graduated</option>
         </select>
         <select
-          value={courseFilter}
-          onChange={e => setCourseFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md"
+          value={subjectFilter}
+          onChange={e => setSubjectFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value="all">All Courses</option>
-          {COURSE_OPTIONS.map(option => (
-            <option key={option} value={option}>{option}</option>
-          ))}
-        </select>
-        <select
-          value={batchFilter}
-          onChange={e => setBatchFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md"
-        >
-          <option value="all">All Batches</option>
-          {BATCH_OPTIONS.map(option => (
-            <option key={option} value={option}>{option}</option>
+          <option value="all">All Subjects</option>
+          {subjects.map(subject => (
+            <option key={subject.id} value={subject.name}>{subject.name}</option>
           ))}
         </select>
       </div>
@@ -438,12 +561,8 @@ export default function AdminStudents() {
                     <span>{student.phone}</span>
                   </div>
                   <div className="flex items-center text-sm">
-                    <BookOpen className="h-4 w-4 mr-2 text-gray-500" />
-                    <span className="truncate">{Array.isArray(student.courses) ? student.courses.join(', ') : student.courses || '-'}</span>
-                  </div>
-                  <div className="flex items-center text-sm">
                     <Award className="h-4 w-4 mr-2 text-gray-500" />
-                    <span className="truncate">{Array.isArray(student.batches) ? student.batches.join(', ') : student.batches || '-'}</span>
+                    <span className="truncate">{Array.isArray(student.subjects) ? student.subjects.join(', ') : student.subjects || '-'}</span>
                   </div>
                   <div className="flex items-center text-sm">
                     <Calendar className="h-4 w-4 mr-2 text-gray-500" />
@@ -553,7 +672,7 @@ export default function AdminStudents() {
         </div>
       )}
 
-      {/* Edit Student Modal */}
+      {/* Edit Student Dialog */}
       {editingStudent && (
         <Dialog open={!!editingStudent} onOpenChange={() => setEditingStudent(null)}>
           <DialogContent>
@@ -588,26 +707,6 @@ export default function AdminStudents() {
                 />
               </div>
               <div>
-                <Label htmlFor="edit-course">Course</Label>
-                <div className="flex flex-wrap gap-2">
-                  {COURSE_OPTIONS.map(option => (
-                    <label key={option} className="flex items-center gap-1">
-                      <input
-                        type="checkbox"
-                        checked={editingStudent?.courses?.includes(option)}
-                        onChange={e => setEditingStudent(prev => prev ? {
-                          ...prev,
-                          courses: e.target.checked
-                            ? [...(prev.courses || []), option]
-                            : (prev.courses || []).filter(c => c !== option)
-                        } : null)}
-                      />
-                      {option}
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div>
                 <Label htmlFor="edit-status">Status</Label>
                 <select
                   id="edit-status"
@@ -619,6 +718,26 @@ export default function AdminStudents() {
                   <option value="inactive">Inactive</option>
                   <option value="graduated">Graduated</option>
                 </select>
+              </div>
+              <div>
+                <Label>Subjects</Label>
+                <div className="flex flex-wrap gap-2">
+                  {subjects.map(subject => (
+                    <label key={subject.id} className="flex items-center gap-1">
+                      <input
+                        type="checkbox"
+                        checked={editingStudent.subjects.includes(subject.name)}
+                        onChange={e => setEditingStudent(prev => prev ? {
+                          ...prev,
+                          subjects: e.target.checked
+                            ? [...prev.subjects, subject.name]
+                            : prev.subjects.filter(s => s !== subject.name)
+                        } : null)}
+                      />
+                      {subject.name}
+                    </label>
+                  ))}
+                </div>
               </div>
               <Button onClick={handleUpdateStudent} className="w-full">
                 Update Student

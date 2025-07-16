@@ -58,11 +58,12 @@ export default function AdminFinance() {
     amount: 0,
     dueDate: '',
     description: '',
-    course: '',
+    subject: '', // Add subject field
   });
 
   const [allStudentFees, setAllStudentFees] = useState<any[]>([]);
   const [studentNames, setStudentNames] = useState<Record<string, string>>({});
+  const [studentSubjects, setStudentSubjects] = useState<string[]>([]);
   const fetchAllFees = async () => {
     const snap = await getDocs(collection(db, 'studentFees'));
     const allFees = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -79,12 +80,10 @@ export default function AdminFinance() {
       const paymentsWithStudent = await Promise.all(
         feePayments.map(async (p: any) => {
           let studentName = p.studentName || '';
-          let course = p.course || '';
-          if ((!studentName || !course) && p.studentId) {
+          if (!studentName && p.studentId) {
             const student = await getStudentByStudentId(p.studentId);
             if (student) {
-              studentName = student.fullName || student.name || '';
-              course = student.course || '';
+              studentName = student.fullName || '';
             }
           }
           return {
@@ -92,7 +91,6 @@ export default function AdminFinance() {
             studentName,
             studentId: p.studentId,
             amount: p.amount,
-            course,
             paymentDate: p.paymentDate instanceof Date ? p.paymentDate : p.paymentDate?.toDate?.() || new Date(p.paymentDate),
             dueDate: p.dueDate instanceof Date ? p.dueDate : p.dueDate?.toDate?.() || new Date(p.dueDate),
             status: p.status || 'paid',
@@ -119,6 +117,19 @@ export default function AdminFinance() {
     };
     fetchFees();
   }, [newPayment.studentId, showAddModal]);
+
+  // When studentId changes, fetch their subjects
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      if (newFee.studentId) {
+        const student = await getStudentByStudentId(newFee.studentId);
+        setStudentSubjects(Array.isArray(student?.subjects) ? student.subjects : []);
+      } else {
+        setStudentSubjects([]);
+      }
+    };
+    fetchSubjects();
+  }, [newFee.studentId]);
 
   // Debug: log studentFees when they change
   useEffect(() => { console.log('studentFees:', studentFees); }, [studentFees]);
@@ -168,7 +179,7 @@ export default function AdminFinance() {
       studentId: newPayment.studentId,
       studentFeeId: selectedStudentFeeId,
       amount: Number(newPayment.amount),
-      paymentMethod: newPayment.paymentMethod,
+      paymentMethod: newPayment.paymentMethod as 'cash' | 'card' | 'upi' | 'bank_transfer' | 'cheque',
       paymentDate: new Date(),
       dueDate: new Date(newPayment.dueDate),
       description: newPayment.description,
@@ -192,12 +203,10 @@ export default function AdminFinance() {
     const paymentsWithStudent = await Promise.all(
       feePayments.map(async (p: any) => {
         let studentName = p.studentName || '';
-        let course = p.course || '';
-        if ((!studentName || !course) && p.studentId) {
+        if (!studentName && p.studentId) {
           const student = await getStudentByStudentId(p.studentId);
           if (student) {
             studentName = student.fullName || '';
-            course = student.course || '';
           }
         }
         return {
@@ -205,7 +214,6 @@ export default function AdminFinance() {
           studentName,
           studentId: p.studentId,
           amount: p.amount,
-          course,
           paymentDate: p.paymentDate instanceof Date ? p.paymentDate : p.paymentDate?.toDate?.() || new Date(p.paymentDate),
           dueDate: p.dueDate instanceof Date ? p.dueDate : p.dueDate?.toDate?.() || new Date(p.dueDate),
           status: p.status || 'paid',
@@ -230,13 +238,11 @@ export default function AdminFinance() {
       status: 'pending',
       paidAmount: 0,
       remainingAmount: Number(newFee.amount),
-      createdAt: new Date(),
-      updatedAt: new Date(),
       description: newFee.description,
-      course: newFee.course,
+      subject: newFee.subject, // Save subject
     });
     setShowAddFeeModal(false);
-    setNewFee({ studentId: '', amount: 0, dueDate: '', description: '', course: '' });
+    setNewFee({ studentId: '', amount: 0, dueDate: '', description: '', subject: '' });
     // Optionally refresh student fees if a student is selected
     if (newPayment.studentId) {
       const fees = await getStudentFees(newPayment.studentId);
@@ -265,7 +271,6 @@ export default function AdminFinance() {
       status: 'paid',
       receiptNumber: `RCPT${Date.now()}`,
       createdBy: 'Admin',
-      course: fee.course || '',
     };
     await createFeePayment(paymentData);
     await fetchAllFees();
@@ -274,12 +279,10 @@ export default function AdminFinance() {
     const paymentsWithStudent = await Promise.all(
       feePayments.map(async (p) => {
         let studentName = p.studentName || '';
-        let course = p.course || '';
-        if ((!studentName || !course) && p.studentId) {
+        if (!studentName && p.studentId) {
           const student = await getStudentByStudentId(p.studentId);
           if (student) {
             studentName = student.fullName || student.name || '';
-            course = student.course || '';
           }
         }
         return {
@@ -287,7 +290,6 @@ export default function AdminFinance() {
           studentName,
           studentId: p.studentId,
           amount: p.amount,
-          course,
           paymentDate: p.paymentDate instanceof Date ? p.paymentDate : p.paymentDate?.toDate?.() || new Date(p.paymentDate),
           dueDate: p.dueDate instanceof Date ? p.dueDate : p.dueDate?.toDate?.() || new Date(p.dueDate),
           status: p.status || 'paid',
@@ -541,18 +543,18 @@ export default function AdminFinance() {
                   />
                 </div>
                 <div className="mb-4">
-                  <Label htmlFor="feeCourse">Course</Label>
+                  <Label htmlFor="subject">Subject</Label>
                   <select
-                    id="feeCourse"
-                    value={newFee.course}
-                    onChange={e => setNewFee({ ...newFee, course: e.target.value })}
+                    id="subject"
+                    value={newFee.subject}
+                    onChange={e => setNewFee({ ...newFee, subject: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    required
                   >
-                    <option value="">Select Course</option>
-                    <option value="JEE Main & Advanced">JEE Main & Advanced</option>
-                    <option value="NEET">NEET</option>
-                    <option value="Class 11th Science">Class 11th Science</option>
-                    <option value="Class 12th Science">Class 12th Science</option>
+                    <option value="">Select Subject</option>
+                    {studentSubjects.map(subject => (
+                      <option key={subject} value={subject}>{subject}</option>
+                    ))}
                   </select>
                 </div>
                 <Button onClick={handleAddFee}>Add Fee</Button>

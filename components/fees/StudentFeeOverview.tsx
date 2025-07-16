@@ -14,6 +14,7 @@ interface StudentFee {
   course?: string;
   batch?: string;
   description?: string;
+  subject?: string; // Added subject field
 }
 
 interface StudentFeeOverviewProps {
@@ -30,12 +31,12 @@ function getStatusColor(status: string) {
 }
 
 export default function StudentFeeOverview({ fees }: StudentFeeOverviewProps) {
-  // Group fees by course
-  const feesByCourse: Record<string, StudentFee[]> = {};
+  // Group fees by subject (or course as fallback)
+  const feesBySubject: Record<string, StudentFee[]> = {};
   fees.forEach(fee => {
-    const course = fee.course || 'Other';
-    if (!feesByCourse[course]) feesByCourse[course] = [];
-    feesByCourse[course].push(fee);
+    const subject = fee.subject || fee.course || 'Other';
+    if (!feesBySubject[subject]) feesBySubject[subject] = [];
+    feesBySubject[subject].push(fee);
   });
 
   return (
@@ -45,12 +46,12 @@ export default function StudentFeeOverview({ fees }: StudentFeeOverviewProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-8">
-          {Object.keys(feesByCourse).length === 0 && (
+          {Object.keys(feesBySubject).length === 0 && (
             <div className="text-center text-gray-500 py-8">No fees assigned</div>
           )}
-          {Object.entries(feesByCourse).map(([course, courseFees]) => (
-            <div key={course}>
-              <h3 className="text-lg font-semibold mb-2">{course}</h3>
+          {Object.entries(feesBySubject).map(([subject, subjectFees]) => (
+            <div key={subject}>
+              <h3 className="text-lg font-semibold mb-2">{subject}</h3>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
@@ -62,10 +63,11 @@ export default function StudentFeeOverview({ fees }: StudentFeeOverviewProps) {
                       <th className="px-2 py-1 border">Status</th>
                       <th className="px-2 py-1 border">Remaining</th>
                       <th className="px-2 py-1 border">Total</th>
+                      <th className="px-2 py-1 border">Subject</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {courseFees.map(fee => (
+                    {subjectFees.map(fee => (
                       <tr key={fee.id}>
                         <td className="px-2 py-1 border">{fee.name}</td>
                         <td className="px-2 py-1 border">{fee.batch || '-'}</td>
@@ -74,6 +76,7 @@ export default function StudentFeeOverview({ fees }: StudentFeeOverviewProps) {
                         <td className="px-2 py-1 border"><Badge variant={getStatusColor(fee.status)}>{fee.status.replace('_', ' ')}</Badge></td>
                         <td className="px-2 py-1 border">₹{fee.remainingAmount}</td>
                         <td className="px-2 py-1 border">₹{fee.amount}</td>
+                        <td className="px-2 py-1 border">{fee.subject || fee.course || '-'}</td>
                       </tr>
                     ))}
                   </tbody>

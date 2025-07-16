@@ -4,13 +4,24 @@ import { useState, useEffect } from 'react';
 import StudentFeeOverview from '@/components/fees/StudentFeeOverview';
 import FeePaymentTable from '@/components/fees/FeePaymentTable';
 import { getStudentFees, getFeePayments } from '@/firebase/fees';
-// import { useAuth } from '@/contexts/AuthContext'; // Uncomment if you have an auth context
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function StudentFeesPage() {
-  // const { user } = useAuth();
-  const studentId = "demo-student-id"; // Replace with user?.uid from auth context
+  const { userProfile, loading } = useAuth();
+  const studentId = userProfile?.studentId;
+
   const [fees, setFees] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
+
+  const handlePay = (paymentId: string) => {
+    alert(`Initiate payment for fee ID: ${paymentId}`);
+    // Here you can open a payment modal or redirect to payment gateway
+  };
+
+  const handleManualPaymentSubmit = (paymentId: string, txnId: string, screenshotFile: File | null) => {
+    alert(`Manual payment submitted for fee ID: ${paymentId}, txnId: ${txnId}`);
+    // Save to Firestore or backend here
+  };
 
   useEffect(() => {
     if (studentId) {
@@ -20,6 +31,7 @@ export default function StudentFeesPage() {
   }, [studentId]);
 
   const loadFeeData = async () => {
+    if (!studentId) return;
     const [studentFees, feePayments] = await Promise.all([
       getStudentFees(studentId),
       getFeePayments(studentId)
@@ -28,11 +40,30 @@ export default function StudentFeesPage() {
     setPayments(feePayments);
   };
 
+  if (loading) return <div>Loading...</div>;
+  if (!studentId) return <div>Please log in to view your fees.</div>;
+
+  // Only show pending fees for payment requests
+  const pendingFees = fees.filter(fee => fee.status === 'pending');
+
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold">My Fees</h1>
-      <StudentFeeOverview fees={fees} />
-      <FeePaymentTable payments={payments.slice(0, 5)} />
+      <h1 className="text-3xl font-bold">My Payment Requests</h1>
+      <FeePaymentTable
+        payments={pendingFees.map(fee => ({
+          id: fee.id,
+          receiptNumber: fee.receiptNumber || '-',
+          amount: fee.amount,
+          paymentMethod: fee.paymentMethod || '-',
+          paymentDate: fee.dueDate,
+          notes: fee.description || '-',
+          studentFeeId: fee.id,
+          status: fee.status,
+        }))}
+        feeIdToSubjectMap={Object.fromEntries(fees.map(fee => [fee.id, fee.course || fee.subject || '-']))}
+        onPay={handlePay}
+        onManualPaymentSubmit={handleManualPaymentSubmit}
+      />
     </div>
   );
 } 

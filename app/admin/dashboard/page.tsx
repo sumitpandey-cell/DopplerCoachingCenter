@@ -70,7 +70,7 @@ export default function AdminDashboard() {
           const student = activeStudentAccounts.find((s: any) => s.email === inq.email);
           if (student) uniqueStudentIds.add(student.email);
         });
-      const activeStudentsCount = uniqueStudentIds.size;
+      const activeStudentsCount = activeStudentAccounts.length;
 
       // 2. Active Faculty
       const facultySnap = await getDocs(collection(db, 'facultyAccounts'));
