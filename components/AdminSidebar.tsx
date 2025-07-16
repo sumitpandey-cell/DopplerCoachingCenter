@@ -46,6 +46,7 @@ const navigation = [
       { name: 'Study Materials', href: '/admin/materials', icon: BookOpen },
       { name: 'Test Management', href: '/admin/tests', icon: FileText },
       { name: 'Announcements', href: '/admin/announcements', icon: Bell },
+      { name: 'Subject Management', href: '/admin/subjects', icon: BookOpen },
     ]
   },
   {
