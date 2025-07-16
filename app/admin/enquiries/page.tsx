@@ -78,7 +78,8 @@ export default function AdminEnquiries() {
         email: enquiry.email,
         fullName: enquiry.fullName,
         phone: enquiry.phone,
-        course: enquiry.course,
+        courses: [], // Pass empty array for compatibility
+        subjects: enquiry.subjects || [], // Copy subjects from enquiry
         password: defaultPassword,
         enquiryId: enquiry.id,
         role: 'student'

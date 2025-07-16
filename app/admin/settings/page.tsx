@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ import {
   CheckCircle,
   AlertTriangle
 } from 'lucide-react';
+import { getSubjects, addSubject, updateSubject, deleteSubject, Subject } from '@/firebase/firestore';
 
 export default function AdminSettings() {
   const [settings, setSettings] = useState({
@@ -52,6 +53,23 @@ export default function AdminSettings() {
   });
 
   const [saved, setSaved] = useState(false);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [newSubject, setNewSubject] = useState('');
+  const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
+  const [editingSubjectName, setEditingSubjectName] = useState('');
+  const [subjectError, setSubjectError] = useState('');
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const data = await getSubjects();
+        setSubjects(data);
+      } catch (error) {
+        setSubjectError('Failed to fetch subjects');
+      }
+    };
+    fetchSubjects();
+  }, []);
 
   const handleSettingChange = (key: string, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
@@ -62,6 +80,47 @@ export default function AdminSettings() {
     console.log('Saving settings:', settings);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
+  };
+
+  const handleAddSubject = async () => {
+    if (!newSubject.trim()) return;
+    try {
+      await addSubject(newSubject.trim());
+      setNewSubject('');
+      const data = await getSubjects();
+      setSubjects(data);
+    } catch (error) {
+      setSubjectError('Failed to add subject');
+    }
+  };
+
+  const handleEditSubject = (id: string, name: string) => {
+    setEditingSubjectId(id);
+    setEditingSubjectName(name);
+  };
+
+  const handleUpdateSubject = async () => {
+    if (!editingSubjectName.trim() || !editingSubjectId) return;
+    try {
+      await updateSubject(editingSubjectId, editingSubjectName.trim());
+      setEditingSubjectId(null);
+      setEditingSubjectName('');
+      const data = await getSubjects();
+      setSubjects(data);
+    } catch (error) {
+      setSubjectError('Failed to update subject');
+    }
+  };
+
+  const handleDeleteSubject = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this subject?')) return;
+    try {
+      await deleteSubject(id);
+      const data = await getSubjects();
+      setSubjects(data);
+    } catch (error) {
+      setSubjectError('Failed to delete subject');
+    }
   };
 
   return (
@@ -79,11 +138,12 @@ export default function AdminSettings() {
       )}
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="system">System</TabsTrigger>
+          <TabsTrigger value="subjects">Subjects</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general">
@@ -367,6 +427,67 @@ export default function AdminSettings() {
                   System changes may require a restart to take effect. Schedule maintenance during off-hours.
                 </AlertDescription>
               </Alert>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="subjects">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">Subjects Management</CardTitle>
+              <CardDescription>Manage the list of available subjects for students and faculty</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex flex-col md:flex-row gap-4 items-center">
+                <Input
+                  placeholder="Add new subject"
+                  value={newSubject}
+                  onChange={e => setNewSubject(e.target.value)}
+                  className="w-full md:w-1/2"
+                />
+                <Button onClick={handleAddSubject}>Add Subject</Button>
+              </div>
+              {subjectError && <Alert variant="destructive"><AlertDescription>{subjectError}</AlertDescription></Alert>}
+              <div className="mt-4">
+                <table className="min-w-full border text-sm">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="py-2 px-4 border">Subject Name</th>
+                      <th className="py-2 px-4 border">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subjects.map(subject => (
+                      <tr key={subject.id}>
+                        <td className="py-2 px-4 border">
+                          {editingSubjectId === subject.id ? (
+                            <Input
+                              value={editingSubjectName}
+                              onChange={e => setEditingSubjectName(e.target.value)}
+                              className="w-full"
+                            />
+                          ) : (
+                            subject.name
+                          )}
+                        </td>
+                        <td className="py-2 px-4 border space-x-2">
+                          {editingSubjectId === subject.id ? (
+                            <>
+                              <Button size="sm" onClick={handleUpdateSubject}>Save</Button>
+                              <Button size="sm" variant="secondary" onClick={() => setEditingSubjectId(null)}>Cancel</Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button size="sm" variant="secondary" onClick={() => handleEditSubject(subject.id!, subject.name)}>Edit</Button>
+                              <Button size="sm" variant="destructive" onClick={() => handleDeleteSubject(subject.id!)}>Delete</Button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

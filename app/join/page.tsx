@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { addStudentEnquiry } from '@/firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { addStudentEnquiry, getSubjects, Subject } from '@/firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,22 +16,50 @@ export default function JoinNow() {
     fullName: '',
     email: '',
     phone: '',
-    course: '',
     notes: '',
+    subjects: [] as string[], // Add subjects array
   });
   const [loading, setLoading] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [error, setError] = useState('');
+  const [subjectsList, setSubjectsList] = useState<Subject[]>([]);
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const subjects = await getSubjects();
+        setSubjectsList(subjects);
+      } catch (error) {
+        console.error('Failed to fetch subjects:', error);
+      }
+    };
+    fetchSubjects();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleSubjectChange = (subject: string) => {
+    setFormData(prev => {
+      const subjects = prev.subjects.includes(subject)
+        ? prev.subjects.filter(s => s !== subject)
+        : [...prev.subjects, subject];
+      return { ...prev, subjects };
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    if (formData.subjects.length === 0) {
+      setError('Please select at least one subject.');
+      setLoading(false);
+      return;
+    }
 
     try {
       await addStudentEnquiry({
@@ -45,8 +73,8 @@ export default function JoinNow() {
         fullName: '',
         email: '',
         phone: '',
-        course: '',
         notes: '',
+        subjects: [],
       });
     } catch (error) {
       console.error('Error submitting enquiry:', error);
@@ -118,23 +146,26 @@ export default function JoinNow() {
               </div>
 
               <div>
-                <Label htmlFor="course">Course *</Label>
-                <select
-                  id="course"
-                  name="course"
-                  value={formData.course}
-                  onChange={handleInputChange}
-                  required
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select Course</option>
-                  <option value="JEE Main & Advanced">JEE Main & Advanced</option>
-                  <option value="NEET">NEET</option>
-                  <option value="Class 11th Science">Class 11th Science</option>
-                  <option value="Class 12th Science">Class 12th Science</option>
-                  <option value="Foundation Course (Class 9th-10th)">Foundation Course (Class 9th-10th)</option>
-                  <option value="Crash Course">Crash Course</option>
-                </select>
+                <Label>Subjects *</Label>
+                <div className="flex flex-wrap gap-4 mt-2">
+                  {subjectsList.map(subject => (
+                    <label key={subject.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        name="subjects"
+                        value={subject.name}
+                        checked={formData.subjects.includes(subject.name)}
+                        onChange={() => handleSubjectChange(subject.name)}
+                        className="accent-blue-600"
+                        required={formData.subjects.length === 0}
+                      />
+                      <span>{subject.name}</span>
+                    </label>
+                  ))}
+                </div>
+                {formData.subjects.length === 0 && (
+                  <span className="text-red-500 text-xs">Please select at least one subject.</span>
+                )}
               </div>
 
               <div>

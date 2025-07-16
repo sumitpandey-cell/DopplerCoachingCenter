@@ -78,8 +78,8 @@ export interface StudentEnquiry {
   fullName: string;
   email: string;
   phone: string;
-  course: string;
   notes: string;
+  subjects: string[];
   submittedAt: Date;
   status: 'pending' | 'id_generated' | 'contacted' | 'rejected';
   studentId?: string;
@@ -99,6 +99,7 @@ export interface StudentAccount {
   isActive: boolean;
   hasSignedUp: boolean;
   signedUpAt?: Date;
+  subjects: string[]; // Add subjects field
 }
 
 export interface FacultyEnquiry {
@@ -255,6 +256,7 @@ export const getStudentEnquiries = async (): Promise<StudentEnquiry[]> => {
   return querySnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
+    subjects: Array.isArray(doc.data().subjects) ? doc.data().subjects : [],
     submittedAt: doc.data().submittedAt.toDate()
   })) as StudentEnquiry[];
 };
@@ -306,6 +308,7 @@ export const getStudentByStudentId = async (studentId: string): Promise<StudentA
       ...data,
       courses,
       batches,
+      subjects: Array.isArray(data.subjects) ? data.subjects : [], // Always return subjects array
       createdAt: data.createdAt.toDate()
     } as StudentAccount;
   }
@@ -428,4 +431,30 @@ export const deleteStudent = async (studentId: string) => {
 export const restoreStudent = async (studentId: string) => {
   const docRef = doc(db, 'studentAccounts', studentId);
   await updateDoc(docRef, { isActive: true, updatedAt: Timestamp.now() });
+};
+
+// Subject Management
+export interface Subject {
+  id?: string;
+  name: string;
+}
+
+export const getSubjects = async (): Promise<Subject[]> => {
+  const querySnapshot = await getDocs(collection(db, 'subjects'));
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Subject[];
+};
+
+export const addSubject = async (name: string) => {
+  const docRef = await addDoc(collection(db, 'subjects'), { name });
+  return docRef.id;
+};
+
+export const updateSubject = async (id: string, name: string) => {
+  const docRef = doc(db, 'subjects', id);
+  await updateDoc(docRef, { name });
+};
+
+export const deleteSubject = async (id: string) => {
+  const docRef = doc(db, 'subjects', id);
+  await deleteDoc(docRef);
 };
