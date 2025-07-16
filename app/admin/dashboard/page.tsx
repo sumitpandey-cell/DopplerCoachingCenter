@@ -128,58 +128,54 @@ export default function AdminDashboard() {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <Card>
+          <Card className="bg-gradient-to-br from-blue-100 to-indigo-100 border-0 shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Registered Students</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-semibold text-blue-700">Total Registered Students</CardTitle>
+              <Users className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.students?.toLocaleString() ?? '-'}</div>
-              <p className="text-xs text-muted-foreground">All student accounts</p>
+              <div className="text-3xl font-extrabold text-blue-900">{stats.students?.toLocaleString() ?? '-'}</div>
+              <p className="text-xs text-blue-700">All student accounts</p>
             </CardContent>
           </Card>
-
-          <Card>
+          <Card className="bg-gradient-to-br from-green-100 to-emerald-100 border-0 shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active/Visible Students</CardTitle>
-              <Users className="h-4 w-4 text-green-600" />
+              <CardTitle className="text-sm font-semibold text-green-700">Active/Visible Students</CardTitle>
+              <Users className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.activeStudents?.toLocaleString() ?? '-'}</div>
-              <p className="text-xs text-muted-foreground">Appear in Students page</p>
+              <div className="text-3xl font-extrabold text-green-900">{stats.activeStudents?.toLocaleString() ?? '-'}</div>
+              <p className="text-xs text-green-700">Appear in Students page</p>
             </CardContent>
           </Card>
-
-          <Card>
+          <Card className="bg-gradient-to-br from-purple-100 to-pink-100 border-0 shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Faculty</CardTitle>
-              <Users className="h-4 w-4 text-blue-600" />
+              <CardTitle className="text-sm font-semibold text-purple-700">Active Faculty</CardTitle>
+              <Users className="h-4 w-4 text-purple-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.faculty?.toLocaleString() ?? '-'}</div>
-              <p className="text-xs text-muted-foreground">Faculty accounts</p>
+              <div className="text-3xl font-extrabold text-purple-900">{stats.faculty?.toLocaleString() ?? '-'}</div>
+              <p className="text-xs text-purple-700">Faculty accounts</p>
             </CardContent>
           </Card>
-
-          <Card>
+          <Card className="bg-gradient-to-br from-orange-100 to-yellow-100 border-0 shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-semibold text-orange-700">Monthly Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹{stats.revenue?.toLocaleString() ?? '-'}</div>
-              <p className="text-xs text-muted-foreground">+8% from last month</p>
+              <div className="text-3xl font-extrabold text-orange-900">₹{stats.revenue?.toLocaleString() ?? '-'}</div>
+              <p className="text-xs text-orange-700">+8% from last month</p>
             </CardContent>
           </Card>
-
-          <Card>
+          <Card className="bg-gradient-to-br from-pink-100 to-red-100 border-0 shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Inquiries</CardTitle>
-              <Bell className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-semibold text-pink-700">Pending Inquiries</CardTitle>
+              <Bell className="h-4 w-4 text-pink-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.pendingInquiries ?? '-'}</div>
-              <p className="text-xs text-muted-foreground">Requires attention</p>
+              <div className="text-3xl font-extrabold text-pink-900">{stats.pendingInquiries ?? '-'}</div>
+              <p className="text-xs text-pink-700">Requires attention</p>
             </CardContent>
           </Card>
         </div>

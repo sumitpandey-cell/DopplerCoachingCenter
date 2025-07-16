@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { BookOpen, Search, Plus, Edit, Trash2, Download, Upload, Calendar, User } from 'lucide-react';
 import { format } from 'date-fns';
+import { Loader, Skeleton } from '@/components/ui/loader';
 
 export default function AdminMaterials() {
   const [materials, setMaterials] = useState<StudyMaterial[]>([]);
@@ -20,6 +21,7 @@ export default function AdminMaterials() {
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<StudyMaterial | null>(null);
+  const [buttonLoading, setButtonLoading] = useState(false);
 
   const [newMaterial, setNewMaterial] = useState({
     title: '',
@@ -32,6 +34,7 @@ export default function AdminMaterials() {
   useEffect(() => {
     const fetchMaterials = async () => {
       try {
+        setButtonLoading(true);
         const data = await getStudyMaterials();
         setMaterials(data);
         setFilteredMaterials(data);
@@ -39,6 +42,7 @@ export default function AdminMaterials() {
         console.error('Error fetching materials:', error);
       } finally {
         setLoading(false);
+        setButtonLoading(false);
       }
     };
 
@@ -116,11 +120,11 @@ export default function AdminMaterials() {
   if (loading) {
     return (
       <div className="p-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-64 bg-gray-200 rounded"></div>
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-1/4 mb-4" />
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full" />
             ))}
           </div>
         </div>
@@ -138,7 +142,7 @@ export default function AdminMaterials() {
           </div>
           <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
             <DialogTrigger asChild>
-              <Button>
+              <Button loading={buttonLoading}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Material
               </Button>
@@ -203,7 +207,7 @@ export default function AdminMaterials() {
                     placeholder="Enter file URL or upload file"
                   />
                 </div>
-                <Button onClick={handleAddMaterial} className="w-full">
+                <Button loading={buttonLoading} onClick={handleAddMaterial} className="w-full">
                   Add Material
                 </Button>
               </div>
@@ -410,7 +414,7 @@ export default function AdminMaterials() {
                   onChange={(e) => setEditingMaterial(prev => prev ? { ...prev, fileName: e.target.value } : null)}
                 />
               </div>
-              <Button onClick={handleUpdateMaterial} className="w-full">
+              <Button loading={buttonLoading} onClick={handleUpdateMaterial} className="w-full">
                 Update Material
               </Button>
             </div>

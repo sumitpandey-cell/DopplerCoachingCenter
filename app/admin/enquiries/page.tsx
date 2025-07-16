@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Users, Search, Phone, Mail, Calendar, UserPlus, CheckCircle, Copy } from 'lucide-react';
 import { format } from 'date-fns';
 import { sendStudentIdEmail } from '@/lib/email-service';
+import { Loader, Skeleton } from '@/components/ui/loader';
 
 export default function AdminEnquiries() {
   const [enquiries, setEnquiries] = useState<StudentEnquiry[]>([]);
@@ -22,10 +23,12 @@ export default function AdminEnquiries() {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [generatedStudentId, setGeneratedStudentId] = useState('');
   const [generatedStudentEmail, setGeneratedStudentEmail] = useState('');
+  const [buttonLoading, setButtonLoading] = useState(false);
 
   useEffect(() => {
     const fetchEnquiries = async () => {
       try {
+        setButtonLoading(true);
         const data = await getStudentEnquiries();
         setEnquiries(data);
         setFilteredEnquiries(data);
@@ -33,6 +36,7 @@ export default function AdminEnquiries() {
         console.error('Error fetching enquiries:', error);
       } finally {
         setLoading(false);
+        setButtonLoading(false);
       }
     };
 
@@ -155,11 +159,11 @@ export default function AdminEnquiries() {
   if (loading) {
     return (
       <div className="p-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-64 bg-gray-200 rounded"></div>
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-1/4 mb-4" />
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full" />
             ))}
           </div>
         </div>
@@ -317,6 +321,7 @@ export default function AdminEnquiries() {
                         onClick={() => handleGenerateStudentId(enquiry)}
                         disabled={generatingId === enquiry.id}
                         className="w-full"
+                        loading={buttonLoading}
                       >
                         <UserPlus className="h-4 w-4 mr-2" />
                         {generatingId === enquiry.id ? 'Generating...' : 'Generate Student ID'}

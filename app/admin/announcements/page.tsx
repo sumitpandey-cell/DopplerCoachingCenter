@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Bell, Search, Plus, Edit, Trash2, Calendar, User, AlertCircle, Info, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { Loader, Skeleton } from '@/components/ui/loader';
 
 export default function AdminAnnouncements() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -20,6 +21,7 @@ export default function AdminAnnouncements() {
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
+  const [buttonLoading, setButtonLoading] = useState(false);
 
   const [newAnnouncement, setNewAnnouncement] = useState({
     title: '',
@@ -30,6 +32,7 @@ export default function AdminAnnouncements() {
   useEffect(() => {
     const fetchAnnouncements = async () => {
       try {
+        setButtonLoading(true);
         const data = await getAnnouncements();
         setAnnouncements(data);
         setFilteredAnnouncements(data);
@@ -37,6 +40,7 @@ export default function AdminAnnouncements() {
         console.error('Error fetching announcements:', error);
       } finally {
         setLoading(false);
+        setButtonLoading(false);
       }
     };
 
@@ -68,6 +72,7 @@ export default function AdminAnnouncements() {
       createdAt: new Date(),
     };
     try {
+      setButtonLoading(true);
       await addAnnouncement(announcement); // Save to Firestore
       // Refetch announcements from Firestore
       const data = await getAnnouncements();
@@ -75,6 +80,8 @@ export default function AdminAnnouncements() {
       setFilteredAnnouncements(data);
     } catch (error) {
       console.error('Error adding announcement:', error);
+    } finally {
+      setButtonLoading(false);
     }
     setNewAnnouncement({
       title: '',
@@ -128,11 +135,11 @@ export default function AdminAnnouncements() {
   if (loading) {
     return (
       <div className="p-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-1/4 mb-4" />
           <div className="space-y-4">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
+              <Skeleton key={i} className="h-32 w-full" />
             ))}
           </div>
         </div>
@@ -150,7 +157,7 @@ export default function AdminAnnouncements() {
           </div>
           <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
             <DialogTrigger asChild>
-              <Button>
+              <Button loading={buttonLoading}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create Announcement
               </Button>
@@ -196,7 +203,7 @@ export default function AdminAnnouncements() {
                     {newAnnouncement.content.length}/1000 characters
                   </p>
                 </div>
-                <Button onClick={handleAddAnnouncement} className="w-full">
+                <Button loading={buttonLoading} onClick={handleAddAnnouncement} className="w-full">
                   Create Announcement
                 </Button>
               </div>
@@ -392,7 +399,7 @@ export default function AdminAnnouncements() {
                   rows={6}
                 />
               </div>
-              <Button onClick={handleUpdateAnnouncement} className="w-full">
+              <Button loading={buttonLoading} onClick={handleUpdateAnnouncement} className="w-full">
                 Update Announcement
               </Button>
             </div>

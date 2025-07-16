@@ -9,7 +9,7 @@ const AdminLoginButton = () => {
   const [showModal, setShowModal] = useState(false);
 
   return (
-    <>
+    <div>
       <Button
         variant="ghost"
         size="sm"
@@ -20,11 +20,11 @@ const AdminLoginButton = () => {
         <span className="text-sm font-medium">Admin Access</span>
       </Button>
       
-      <AdminLoginModal 
-        isOpen={showModal} 
-        onClose={() => setShowModal(false)} 
+      <AdminLoginModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
       />
-    </>
+    </div>
   );
 };
 

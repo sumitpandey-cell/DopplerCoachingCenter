@@ -18,6 +18,7 @@ import { createStudentFee } from '@/firebase/fees';
 import { getDocs, collection, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
+import { Loader, Skeleton } from '@/components/ui/loader';
 
 interface Payment {
   id: string;
@@ -34,6 +35,8 @@ interface Payment {
 
 export default function AdminFinance() {
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [buttonLoading, setButtonLoading] = useState(false);
 
   const [filteredPayments, setFilteredPayments] = useState<Payment[]>(payments);
   const [searchTerm, setSearchTerm] = useState('');
@@ -75,31 +78,39 @@ export default function AdminFinance() {
 
   useEffect(() => {
     const fetchPayments = async () => {
-      const feePayments = await getFeePayments();
-      // For each payment, fetch student name and course
-      const paymentsWithStudent = await Promise.all(
-        feePayments.map(async (p: any) => {
-          let studentName = p.studentName || '';
-          if (!studentName && p.studentId) {
-            const student = await getStudentByStudentId(p.studentId);
-            if (student) {
-              studentName = student.fullName || '';
+      try {
+        setButtonLoading(true);
+        const feePayments = await getFeePayments();
+        // For each payment, fetch student name and course
+        const paymentsWithStudent = await Promise.all(
+          feePayments.map(async (p: any) => {
+            let studentName = p.studentName || '';
+            if (!studentName && p.studentId) {
+              const student = await getStudentByStudentId(p.studentId);
+              if (student) {
+                studentName = student.fullName || '';
+              }
             }
-          }
-          return {
-            id: p.id,
-            studentName,
-            studentId: p.studentId,
-            amount: p.amount,
-            paymentDate: p.paymentDate instanceof Date ? p.paymentDate : p.paymentDate?.toDate?.() || new Date(p.paymentDate),
-            dueDate: p.dueDate instanceof Date ? p.dueDate : p.dueDate?.toDate?.() || new Date(p.dueDate),
-            status: p.status || 'paid',
-            paymentMethod: p.paymentMethod || 'upi',
-            description: p.description || '',
-          };
-        })
-      );
-      setPayments(paymentsWithStudent);
+            return {
+              id: p.id,
+              studentName,
+              studentId: p.studentId,
+              amount: p.amount,
+              paymentDate: p.paymentDate instanceof Date ? p.paymentDate : p.paymentDate?.toDate?.() || new Date(p.paymentDate),
+              dueDate: p.dueDate instanceof Date ? p.dueDate : p.dueDate?.toDate?.() || new Date(p.dueDate),
+              status: p.status || 'paid',
+              paymentMethod: p.paymentMethod || 'upi',
+              description: p.description || '',
+            };
+          })
+        );
+        setPayments(paymentsWithStudent);
+      } catch (error) {
+        console.error('Error fetching payments:', error);
+      } finally {
+        setLoading(false);
+        setButtonLoading(false);
+      }
     };
     fetchPayments();
   }, []);
@@ -360,6 +371,21 @@ export default function AdminFinance() {
     revenue,
   }));
 
+  if (loading) {
+    return (
+      <div className="p-8">
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-1/4 mb-4" />
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -375,7 +401,7 @@ export default function AdminFinance() {
             </Button>
             <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
               <DialogTrigger asChild>
-                <Button>
+                <Button loading={buttonLoading}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Payment
                 </Button>
@@ -487,7 +513,7 @@ export default function AdminFinance() {
                       placeholder="Payment description"
                     />
                   </div>
-                  <Button onClick={handleAddPayment} className="w-full">
+                  <Button loading={buttonLoading} onClick={handleAddPayment} className="w-full">
                     Add Payment
                   </Button>
                 </div>
@@ -496,7 +522,7 @@ export default function AdminFinance() {
             {/* Request Payment (Add Fee) Modal */}
             <Dialog open={showAddFeeModal} onOpenChange={setShowAddFeeModal}>
               <DialogTrigger asChild>
-                <Button className="mb-4" onClick={() => setShowAddFeeModal(true)}>
+                <Button loading={buttonLoading} className="mb-4" onClick={() => setShowAddFeeModal(true)}>
                   Request Payment (Add Fee)
                 </Button>
               </DialogTrigger>
@@ -557,7 +583,7 @@ export default function AdminFinance() {
                     ))}
                   </select>
                 </div>
-                <Button onClick={handleAddFee}>Add Fee</Button>
+                <Button loading={buttonLoading} onClick={handleAddFee}>Add Fee</Button>
               </DialogContent>
             </Dialog>
           </div>
