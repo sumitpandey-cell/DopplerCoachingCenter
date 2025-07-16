@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { getAllTestResults, TestResult } from '@/firebase/firestore';
+import { getAllTestResults, getAllTests, addTest, updateTest, deleteTest, TestResult } from '@/firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,32 +25,7 @@ interface Test {
 }
 
 export default function AdminTests() {
-  const [tests, setTests] = useState<Test[]>([
-    {
-      id: '1',
-      name: 'Physics Chapter 1 Test',
-      subject: 'Physics',
-      maxScore: 100,
-      duration: 120,
-      scheduledDate: new Date(2024, 11, 25),
-      status: 'scheduled',
-      studentsEnrolled: 45,
-      averageScore: 0,
-      createdBy: 'Dr. Rajesh Kumar',
-    },
-    {
-      id: '2',
-      name: 'Mathematics Algebra Test',
-      subject: 'Mathematics',
-      maxScore: 80,
-      duration: 90,
-      scheduledDate: new Date(2024, 11, 20),
-      status: 'completed',
-      studentsEnrolled: 38,
-      averageScore: 72,
-      createdBy: 'Prof. Priya Sharma',
-    },
-  ]);
+  const [tests, setTests] = useState<Test[]>([]);
 
   const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [filteredTests, setFilteredTests] = useState<Test[]>(tests);
@@ -72,23 +47,23 @@ export default function AdminTests() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const results = await getAllTestResults();
+        const [allTests, results] = await Promise.all([
+          getAllTests(),
+          getAllTestResults(),
+        ]);
         setTestResults(results);
-        
         // Update test statistics based on results
-        const updatedTests = tests.map(test => {
+        const updatedTests = allTests.map((test: any) => {
           const testResults = results.filter(r => r.testName === test.name);
           const averageScore = testResults.length > 0 
             ? testResults.reduce((sum, r) => sum + r.percentage, 0) / testResults.length
             : 0;
-          
           return {
             ...test,
-            studentsEnrolled: testResults.length || test.studentsEnrolled,
+            studentsEnrolled: testResults.length,
             averageScore: Math.round(averageScore),
           };
         });
-        
         setTests(updatedTests);
         setFilteredTests(updatedTests);
       } catch (error) {
@@ -119,17 +94,14 @@ export default function AdminTests() {
     setFilteredTests(filtered);
   }, [tests, searchTerm, statusFilter]);
 
-  const handleAddTest = () => {
-    const test: Test = {
-      id: `TEST${Date.now()}`,
+  const handleAddTest = async () => {
+    const test = {
       ...newTest,
-      scheduledDate: new Date(newTest.scheduledDate),
       studentsEnrolled: 0,
       averageScore: 0,
       createdBy: 'Admin',
     };
-
-    setTests(prev => [...prev, test]);
+    await addTest(test);
     setNewTest({
       name: '',
       subject: '',
@@ -139,24 +111,34 @@ export default function AdminTests() {
       status: 'scheduled',
     });
     setShowAddModal(false);
+    // Refresh tests
+    const allTests = await getAllTests();
+    setTests(allTests);
+    setFilteredTests(allTests);
   };
 
   const handleEditTest = (test: Test) => {
     setEditingTest(test);
   };
 
-  const handleUpdateTest = () => {
+  const handleUpdateTest = async () => {
     if (!editingTest) return;
-
-    setTests(prev =>
-      prev.map(t => t.id === editingTest.id ? editingTest : t)
-    );
+    const { id, ...updates } = editingTest;
+    await updateTest(id, updates);
     setEditingTest(null);
+    // Refresh tests
+    const allTests = await getAllTests();
+    setTests(allTests);
+    setFilteredTests(allTests);
   };
 
-  const handleDeleteTest = (testId: string) => {
+  const handleDeleteTest = async (testId: string) => {
     if (confirm('Are you sure you want to delete this test?')) {
-      setTests(prev => prev.filter(t => t.id !== testId));
+      await deleteTest(testId);
+      // Refresh tests
+      const allTests = await getAllTests();
+      setTests(allTests);
+      setFilteredTests(allTests);
     }
   };
 

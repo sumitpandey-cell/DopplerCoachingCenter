@@ -46,6 +46,7 @@ const navigation = [
       { name: 'Study Materials', href: '/admin/materials', icon: BookOpen },
       { name: 'Test Management', href: '/admin/tests', icon: FileText },
       { name: 'Announcements', href: '/admin/announcements', icon: Bell },
+      { name: 'Subject Management', href: '/admin/subjects', icon: BookOpen },
     ]
   },
   {
@@ -67,6 +68,16 @@ const navigation = [
     href: '/admin/finance',
     icon: DollarSign,
     description: 'Revenue & Payments'
+  },
+  {
+    name: 'Fees',
+    icon: DollarSign,
+    children: [
+      { name: 'Overview', href: '/admin/fees', icon: DollarSign },
+      { name: 'Fee Structures', href: '/admin/fees/structure', icon: FileText },
+      { name: 'Payments', href: '/admin/fees/payments', icon: TrendingUp },
+      { name: 'Reports', href: '/admin/fees/reports', icon: FileText },
+    ]
   },
   {
     name: 'System Settings',
