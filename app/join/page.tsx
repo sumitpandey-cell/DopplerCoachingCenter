@@ -91,7 +91,7 @@ export default function JoinNow() {
           <UserPlus className="h-16 w-16 text-blue-600 mx-auto mb-4" />
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Join Doppler Coaching</h1>
           <p className="text-xl text-gray-600">
-            Start your journey to academic excellence. Fill out the form below and we'll get back to you soon.
+            Start your journey to academic excellence. Fill out the form below and we&apos;ll get back to you soon.
           </p>
         </div>
 
@@ -218,7 +218,7 @@ export default function JoinNow() {
                   </li>
                   <li className="flex items-center">
                     <Mail className="h-4 w-4 mr-2 text-blue-500" />
-                    You'll receive your Student ID via email
+                    You&apos;ll receive your Student ID via email
                   </li>
                 </ul>
                 <p className="text-sm text-gray-500 mt-4">

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import React, { useState } from 'react';
+import Image from 'next/image';
 
 interface FeePayment {
   id: string;
@@ -104,7 +105,7 @@ export default function FeePaymentTable({ payments, feeIdToSubjectMap, onPay, on
             <div className="bg-white rounded shadow-lg p-6 w-full max-w-sm">
               <h2 className="text-lg font-semibold mb-2">Manual UPI Payment</h2>
               <div className="flex flex-col items-center mb-2">
-                <img src="/static/upi-qr.png" alt="UPI QR Code" className="w-32 h-32 mb-2 border" />
+                <Image src="/static/upi-qr.png" alt="UPI QR Code" width={128} height={128} className="w-32 h-32 mb-2 border" />
                 <p className="mb-2">Scan this QR code or use the UPI ID below:</p>
                 <p className="mb-2">Send payment to UPI ID: <span className="font-mono font-bold">yourupi@bank</span></p>
               </div>

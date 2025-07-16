@@ -381,7 +381,7 @@ export const getAllTests = async () => {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), scheduledDate: doc.data().scheduledDate?.toDate?.() || doc.data().scheduledDate }));
 };
 
-export const addTest = async (test) => {
+export const addTest = async (test: any) => {
   const docRef = await addDoc(collection(db, 'tests'), {
     ...test,
     scheduledDate: Timestamp.fromDate(new Date(test.scheduledDate)),
@@ -390,7 +390,7 @@ export const addTest = async (test) => {
   return docRef.id;
 };
 
-export const updateTest = async (testId, updates) => {
+export const updateTest = async (testId: string, updates: any) => {
   const docRef = doc(db, 'tests', testId);
   await updateDoc(docRef, {
     ...updates,
@@ -399,7 +399,7 @@ export const updateTest = async (testId, updates) => {
   });
 };
 
-export const deleteTest = async (testId) => {
+export const deleteTest = async (testId: string) => {
   const docRef = doc(db, 'tests', testId);
   await deleteDoc(docRef);
 };
@@ -425,7 +425,7 @@ export const updateStudent = async (studentId: string, updates: Partial<StudentA
 
 export const deleteStudent = async (studentId: string) => {
   const docRef = doc(db, 'studentAccounts', studentId);
-  await updateDoc(docRef, { isActive: false, updatedAt: Timestamp.now() });
+  await updateDoc(docRef, { isActive: false, status: 'inactive', updatedAt: Timestamp.now() });
 };
 
 export const restoreStudent = async (studentId: string) => {

@@ -167,7 +167,7 @@ export default function StudentSignup() {
               </a>
             </p>
             <p className="text-xs text-gray-500">
-              Don't have a Student ID? Contact admin or apply for admission
+              Don&apos;t have a Student ID? Contact admin or apply for admission
             </p>
           </div>
         </CardContent>

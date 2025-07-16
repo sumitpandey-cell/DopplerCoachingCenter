@@ -10,6 +10,7 @@ export default function StudentPaymentsPage() {
   const studentId = userProfile?.studentId;
   const [payments, setPayments] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState('all');
 
   useEffect(() => {
     if (studentId) {
@@ -31,7 +32,6 @@ export default function StudentPaymentsPage() {
   const paidPayments = payments.filter(p => p.status === 'paid');
   // Get unique subjects
   const subjects = Array.from(new Set(paidPayments.map(p => p.subject).filter(Boolean)));
-  const [subjectFilter, setSubjectFilter] = useState('all');
   // Filter by search and subject
   const filteredPayments = paidPayments.filter(p =>
     (subjectFilter === 'all' || p.subject === subjectFilter) &&

@@ -148,7 +148,7 @@ export default function AdminFinance() {
       setStudentNames(prev => ({ ...prev, ...names }));
     };
     if (allStudentFees.length) fetchNames();
-  }, [allStudentFees]);
+  }, [allStudentFees, studentNames]);
 
   React.useEffect(() => {
     let filtered = payments;
