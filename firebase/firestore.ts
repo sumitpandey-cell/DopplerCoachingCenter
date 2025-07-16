@@ -90,7 +90,8 @@ export interface StudentAccount {
   email: string;
   fullName: string;
   phone: string;
-  course: string;
+  courses: string[];
+  batches?: string[];
   password: string;
   role: 'student';
   createdAt: Date;
@@ -288,8 +289,23 @@ export const getStudentByStudentId = async (studentId: string): Promise<StudentA
   
   if (docSnap.exists()) {
     const data = docSnap.data();
+    // Backward compatibility: convert single course/batch to arrays if needed
+    let courses: string[] = [];
+    let batches: string[] = [];
+    if (Array.isArray(data.courses)) {
+      courses = data.courses;
+    } else if (typeof data.course === 'string') {
+      courses = [data.course];
+    }
+    if (Array.isArray(data.batches)) {
+      batches = data.batches;
+    } else if (typeof data.batch === 'string') {
+      batches = [data.batch];
+    }
     return {
       ...data,
+      courses,
+      batches,
       createdAt: data.createdAt.toDate()
     } as StudentAccount;
   }
@@ -353,4 +369,63 @@ export const getFacultyByFacultyId = async (facultyId: string): Promise<FacultyA
     } as FacultyAccount;
   }
   return null;
+};
+
+export const getAllTests = async () => {
+  const querySnapshot = await getDocs(
+    query(collection(db, 'tests'), orderBy('scheduledDate', 'desc'))
+  );
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), scheduledDate: doc.data().scheduledDate?.toDate?.() || doc.data().scheduledDate }));
+};
+
+export const addTest = async (test) => {
+  const docRef = await addDoc(collection(db, 'tests'), {
+    ...test,
+    scheduledDate: Timestamp.fromDate(new Date(test.scheduledDate)),
+    createdAt: Timestamp.now(),
+  });
+  return docRef.id;
+};
+
+export const updateTest = async (testId, updates) => {
+  const docRef = doc(db, 'tests', testId);
+  await updateDoc(docRef, {
+    ...updates,
+    ...(updates.scheduledDate ? { scheduledDate: Timestamp.fromDate(new Date(updates.scheduledDate)) } : {}),
+    updatedAt: Timestamp.now(),
+  });
+};
+
+export const deleteTest = async (testId) => {
+  const docRef = doc(db, 'tests', testId);
+  await deleteDoc(docRef);
+};
+
+export const addStudent = async (student: StudentAccount) => {
+  const docRef = doc(db, 'studentAccounts', student.studentId);
+  await setDoc(docRef, {
+    ...student,
+    createdAt: Timestamp.fromDate(new Date()),
+    isActive: true,
+    hasSignedUp: false,
+  });
+  return student.studentId;
+};
+
+export const updateStudent = async (studentId: string, updates: Partial<StudentAccount>) => {
+  const docRef = doc(db, 'studentAccounts', studentId);
+  await updateDoc(docRef, {
+    ...updates,
+    updatedAt: Timestamp.now(),
+  });
+};
+
+export const deleteStudent = async (studentId: string) => {
+  const docRef = doc(db, 'studentAccounts', studentId);
+  await updateDoc(docRef, { isActive: false, updatedAt: Timestamp.now() });
+};
+
+export const restoreStudent = async (studentId: string) => {
+  const docRef = doc(db, 'studentAccounts', studentId);
+  await updateDoc(docRef, { isActive: true, updatedAt: Timestamp.now() });
 };

@@ -69,6 +69,16 @@ const navigation = [
     description: 'Revenue & Payments'
   },
   {
+    name: 'Fees',
+    icon: DollarSign,
+    children: [
+      { name: 'Overview', href: '/admin/fees', icon: DollarSign },
+      { name: 'Fee Structures', href: '/admin/fees/structure', icon: FileText },
+      { name: 'Payments', href: '/admin/fees/payments', icon: TrendingUp },
+      { name: 'Reports', href: '/admin/fees/reports', icon: FileText },
+    ]
+  },
+  {
     name: 'System Settings',
     href: '/admin/settings',
     icon: Settings,

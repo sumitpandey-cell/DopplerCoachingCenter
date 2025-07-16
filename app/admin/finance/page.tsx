@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,14 @@ import { Label } from '@/components/ui/label';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { DollarSign, Search, Plus, TrendingUp, CreditCard, Users, Calendar, Download } from 'lucide-react';
 import { format } from 'date-fns';
+import { getFeePayments } from '@/firebase/fees';
+import { getStudentByStudentId } from '@/firebase/firestore';
+import { createFeePayment } from '@/firebase/fees';
+import { getStudentFees } from '@/firebase/fees';
+import { createStudentFee } from '@/firebase/fees';
+import { getDocs, collection, updateDoc, doc } from 'firebase/firestore';
+import { db } from '@/firebase/config';
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 
 interface Payment {
   id: string;
@@ -25,56 +33,7 @@ interface Payment {
 }
 
 export default function AdminFinance() {
-  const [payments, setPayments] = useState<Payment[]>([
-    {
-      id: '1',
-      studentName: 'Rahul Sharma',
-      studentId: 'STU001',
-      amount: 15000,
-      course: 'JEE Main & Advanced',
-      paymentDate: new Date(2024, 11, 15),
-      dueDate: new Date(2024, 11, 10),
-      status: 'paid',
-      paymentMethod: 'upi',
-      description: 'Monthly fee - December 2024',
-    },
-    {
-      id: '2',
-      studentName: 'Priya Patel',
-      studentId: 'STU002',
-      amount: 12000,
-      course: 'NEET',
-      paymentDate: new Date(2024, 11, 20),
-      dueDate: new Date(2024, 11, 10),
-      status: 'paid',
-      paymentMethod: 'card',
-      description: 'Monthly fee - December 2024',
-    },
-    {
-      id: '3',
-      studentName: 'Amit Kumar',
-      studentId: 'STU003',
-      amount: 15000,
-      course: 'JEE Main & Advanced',
-      paymentDate: new Date(),
-      dueDate: new Date(2024, 11, 25),
-      status: 'pending',
-      paymentMethod: 'bank_transfer',
-      description: 'Monthly fee - December 2024',
-    },
-    {
-      id: '4',
-      studentName: 'Sneha Gupta',
-      studentId: 'STU004',
-      amount: 10000,
-      course: 'Class 12th Science',
-      paymentDate: new Date(),
-      dueDate: new Date(2024, 11, 5),
-      status: 'overdue',
-      paymentMethod: 'cash',
-      description: 'Monthly fee - December 2024',
-    },
-  ]);
+  const [payments, setPayments] = useState<Payment[]>([]);
 
   const [filteredPayments, setFilteredPayments] = useState<Payment[]>(payments);
   const [searchTerm, setSearchTerm] = useState('');
@@ -90,6 +49,95 @@ export default function AdminFinance() {
     paymentMethod: 'upi' as const,
     description: '',
   });
+
+  const [studentFees, setStudentFees] = useState<any[]>([]);
+  const [selectedStudentFeeId, setSelectedStudentFeeId] = useState('');
+  const [showAddFeeModal, setShowAddFeeModal] = useState(false);
+  const [newFee, setNewFee] = useState({
+    studentId: '',
+    amount: 0,
+    dueDate: '',
+    description: '',
+    course: '',
+  });
+
+  const [allStudentFees, setAllStudentFees] = useState<any[]>([]);
+  const [studentNames, setStudentNames] = useState<Record<string, string>>({});
+  const fetchAllFees = async () => {
+    const snap = await getDocs(collection(db, 'studentFees'));
+    const allFees = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setAllStudentFees(allFees);
+  };
+  useEffect(() => {
+    fetchAllFees();
+  }, [showAddFeeModal]);
+
+  useEffect(() => {
+    const fetchPayments = async () => {
+      const feePayments = await getFeePayments();
+      // For each payment, fetch student name and course
+      const paymentsWithStudent = await Promise.all(
+        feePayments.map(async (p: any) => {
+          let studentName = p.studentName || '';
+          let course = p.course || '';
+          if ((!studentName || !course) && p.studentId) {
+            const student = await getStudentByStudentId(p.studentId);
+            if (student) {
+              studentName = student.fullName || student.name || '';
+              course = student.course || '';
+            }
+          }
+          return {
+            id: p.id,
+            studentName,
+            studentId: p.studentId,
+            amount: p.amount,
+            course,
+            paymentDate: p.paymentDate instanceof Date ? p.paymentDate : p.paymentDate?.toDate?.() || new Date(p.paymentDate),
+            dueDate: p.dueDate instanceof Date ? p.dueDate : p.dueDate?.toDate?.() || new Date(p.dueDate),
+            status: p.status || 'paid',
+            paymentMethod: p.paymentMethod || 'upi',
+            description: p.description || '',
+          };
+        })
+      );
+      setPayments(paymentsWithStudent);
+    };
+    fetchPayments();
+  }, []);
+
+  // Fetch student fees when studentId changes in the add payment form
+  useEffect(() => {
+    const fetchFees = async () => {
+      if (newPayment.studentId) {
+        const fees = await getStudentFees(newPayment.studentId);
+        setStudentFees(fees);
+      } else {
+        setStudentFees([]);
+      }
+      setSelectedStudentFeeId('');
+    };
+    fetchFees();
+  }, [newPayment.studentId, showAddModal]);
+
+  // Debug: log studentFees when they change
+  useEffect(() => { console.log('studentFees:', studentFees); }, [studentFees]);
+
+  // Fetch student names for all fees in the pending table
+  useEffect(() => {
+    const fetchNames = async () => {
+      const ids = Array.from(new Set(allStudentFees.map(fee => fee.studentId)));
+      const names: Record<string, string> = {};
+      await Promise.all(ids.map(async id => {
+        if (id && !studentNames[id]) {
+          const student = await getStudentByStudentId(id);
+          if (student) names[id] = student.fullName || '';
+        }
+      }));
+      setStudentNames(prev => ({ ...prev, ...names }));
+    };
+    if (allStudentFees.length) fetchNames();
+  }, [allStudentFees]);
 
   React.useEffect(() => {
     let filtered = payments;
@@ -109,16 +157,26 @@ export default function AdminFinance() {
     setFilteredPayments(filtered);
   }, [payments, searchTerm, statusFilter]);
 
-  const handleAddPayment = () => {
-    const payment: Payment = {
-      id: `PAY${Date.now()}`,
-      ...newPayment,
+  const handleAddPayment = async () => {
+    // Optionally validate studentId exists here
+    const receiptNumber = `RCPT${Date.now()}`;
+    if (!selectedStudentFeeId) {
+      alert('Please select a fee to apply this payment to.');
+      return;
+    }
+    const paymentData = {
+      studentId: newPayment.studentId,
+      studentFeeId: selectedStudentFeeId,
+      amount: Number(newPayment.amount),
+      paymentMethod: newPayment.paymentMethod,
       paymentDate: new Date(),
       dueDate: new Date(newPayment.dueDate),
-      status: 'pending',
+      description: newPayment.description,
+      status: 'paid',
+      receiptNumber,
+      createdBy: 'Admin',
     };
-
-    setPayments(prev => [...prev, payment]);
+    await createFeePayment(paymentData);
     setNewPayment({
       studentName: '',
       studentId: '',
@@ -129,6 +187,116 @@ export default function AdminFinance() {
       description: '',
     });
     setShowAddModal(false);
+    // Refresh payments
+    const feePayments = await getFeePayments();
+    const paymentsWithStudent = await Promise.all(
+      feePayments.map(async (p: any) => {
+        let studentName = p.studentName || '';
+        let course = p.course || '';
+        if ((!studentName || !course) && p.studentId) {
+          const student = await getStudentByStudentId(p.studentId);
+          if (student) {
+            studentName = student.fullName || '';
+            course = student.course || '';
+          }
+        }
+        return {
+          id: p.id,
+          studentName,
+          studentId: p.studentId,
+          amount: p.amount,
+          course,
+          paymentDate: p.paymentDate instanceof Date ? p.paymentDate : p.paymentDate?.toDate?.() || new Date(p.paymentDate),
+          dueDate: p.dueDate instanceof Date ? p.dueDate : p.dueDate?.toDate?.() || new Date(p.dueDate),
+          status: p.status || 'paid',
+          paymentMethod: p.paymentMethod || 'upi',
+          description: p.description || '',
+        };
+      })
+    );
+    setPayments(paymentsWithStudent);
+  };
+
+  const handleAddFee = async () => {
+    if (!newFee.studentId || !newFee.amount || !newFee.dueDate) {
+      alert('Please fill all required fields.');
+      return;
+    }
+    await createStudentFee({
+      studentId: newFee.studentId,
+      feeStructureId: '', // You can link to a structure if needed
+      amount: Number(newFee.amount),
+      dueDate: new Date(newFee.dueDate),
+      status: 'pending',
+      paidAmount: 0,
+      remainingAmount: Number(newFee.amount),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      description: newFee.description,
+      course: newFee.course,
+    });
+    setShowAddFeeModal(false);
+    setNewFee({ studentId: '', amount: 0, dueDate: '', description: '', course: '' });
+    // Optionally refresh student fees if a student is selected
+    if (newPayment.studentId) {
+      const fees = await getStudentFees(newPayment.studentId);
+      setStudentFees(fees);
+    }
+    await fetchAllFees();
+    alert('Fee requested successfully!');
+  };
+
+  const handleMarkAsPaid = async (feeId: string) => {
+    // Find the fee object
+    const fee = allStudentFees.find(f => f.id === feeId);
+    if (!fee) return;
+    // Mark fee as paid in studentFees
+    const feeRef = doc(db, 'studentFees', feeId);
+    await updateDoc(feeRef, { status: 'paid', updatedAt: new Date() });
+    // Create a payment record in feePayments
+    const paymentData = {
+      studentId: fee.studentId,
+      studentFeeId: feeId,
+      amount: Number(fee.amount),
+      paymentMethod: 'cash', // or let admin choose
+      paymentDate: new Date(),
+      dueDate: fee.dueDate instanceof Date ? fee.dueDate : fee.dueDate?.toDate?.() || new Date(fee.dueDate),
+      description: fee.description || '',
+      status: 'paid',
+      receiptNumber: `RCPT${Date.now()}`,
+      createdBy: 'Admin',
+      course: fee.course || '',
+    };
+    await createFeePayment(paymentData);
+    await fetchAllFees();
+    // Refresh payments
+    const feePayments = await getFeePayments();
+    const paymentsWithStudent = await Promise.all(
+      feePayments.map(async (p) => {
+        let studentName = p.studentName || '';
+        let course = p.course || '';
+        if ((!studentName || !course) && p.studentId) {
+          const student = await getStudentByStudentId(p.studentId);
+          if (student) {
+            studentName = student.fullName || student.name || '';
+            course = student.course || '';
+          }
+        }
+        return {
+          id: p.id,
+          studentName,
+          studentId: p.studentId,
+          amount: p.amount,
+          course,
+          paymentDate: p.paymentDate instanceof Date ? p.paymentDate : p.paymentDate?.toDate?.() || new Date(p.paymentDate),
+          dueDate: p.dueDate instanceof Date ? p.dueDate : p.dueDate?.toDate?.() || new Date(p.dueDate),
+          status: p.status || 'paid',
+          paymentMethod: p.paymentMethod || 'upi',
+          description: p.description || '',
+        };
+      })
+    );
+    setPayments(paymentsWithStudent);
   };
 
   const getStatusBadge = (status: string) => {
@@ -160,19 +328,19 @@ export default function AdminFinance() {
   };
 
   // Calculate financial metrics
-  const totalRevenue = payments.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
-  const pendingAmount = payments.filter(p => p.status === 'pending').reduce((sum, p) => sum + p.amount, 0);
+  const pendingFees = allStudentFees.filter(fee => fee.status === 'pending');
+  const pendingAmount = pendingFees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+  const totalRevenue = payments.filter(p => p.status === 'paid').reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
   const overdueAmount = payments.filter(p => p.status === 'overdue').reduce((sum, p) => sum + p.amount, 0);
 
-  // Monthly revenue data (mock)
-  const monthlyData = [
-    { month: 'Jul', revenue: 180000, students: 45 },
-    { month: 'Aug', revenue: 195000, students: 48 },
-    { month: 'Sep', revenue: 210000, students: 52 },
-    { month: 'Oct', revenue: 225000, students: 55 },
-    { month: 'Nov', revenue: 240000, students: 58 },
-    { month: 'Dec', revenue: 255000, students: 62 },
-  ];
+  // Monthly revenue data (from actual payments)
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthlyData = Array.from({ length: 12 }, (_, i) => {
+    const monthPayments = payments.filter(p => p.paymentDate && p.paymentDate.getMonth() === i && p.status === 'paid');
+    const revenue = monthPayments.reduce((sum, p) => sum + p.amount, 0);
+    const students = new Set(monthPayments.map(p => p.studentId)).size;
+    return { month: monthNames[i], revenue, students };
+  });
 
   // Course revenue data
   const courseData = payments.reduce((acc, payment) => {
@@ -231,10 +399,32 @@ export default function AdminFinance() {
                       <Input
                         id="studentId"
                         value={newPayment.studentId}
-                        onChange={(e) => setNewPayment(prev => ({ ...prev, studentId: e.target.value }))}
-                        placeholder="Enter student ID"
+                        onChange={e => {
+                          setNewPayment({ ...newPayment, studentId: e.target.value });
+                          setSelectedStudentFeeId(''); // Reset fee selection when student changes
+                        }}
+                        placeholder="Enter Student ID"
+                        className="w-full"
                       />
                     </div>
+                  </div>
+                  {/* Student Fee Dropdown */}
+                  <div className="mb-4">
+                    <Label htmlFor="studentFee">Select Fee</Label>
+                    <select
+                      id="studentFee"
+                      className="w-full border rounded px-3 py-2 mt-1"
+                      value={selectedStudentFeeId}
+                      onChange={e => setSelectedStudentFeeId(e.target.value)}
+                      disabled={studentFees.length === 0}
+                    >
+                      <option value="">{studentFees.length ? 'Select a fee...' : 'Enter Student ID first'}</option>
+                      {studentFees.map(fee => (
+                        <option key={fee.id} value={fee.id}>
+                          {fee.amount} due {fee.dueDate instanceof Date ? format(fee.dueDate, 'MMM dd, yyyy') : fee.dueDate?.toDate?.() ? format(fee.dueDate.toDate(), 'MMM dd, yyyy') : ''} ({fee.status})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -301,6 +491,73 @@ export default function AdminFinance() {
                 </div>
               </DialogContent>
             </Dialog>
+            {/* Request Payment (Add Fee) Modal */}
+            <Dialog open={showAddFeeModal} onOpenChange={setShowAddFeeModal}>
+              <DialogTrigger asChild>
+                <Button className="mb-4" onClick={() => setShowAddFeeModal(true)}>
+                  Request Payment (Add Fee)
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Request Payment (Add Fee)</DialogTitle>
+                  <DialogDescription>Create a new fee (bill) for a student.</DialogDescription>
+                </DialogHeader>
+                <div className="mb-4">
+                  <Label htmlFor="feeStudentId">Student ID</Label>
+                  <Input
+                    id="feeStudentId"
+                    value={newFee.studentId}
+                    onChange={e => setNewFee({ ...newFee, studentId: e.target.value })}
+                    placeholder="Enter Student ID"
+                  />
+                </div>
+                <div className="mb-4">
+                  <Label htmlFor="feeAmount">Amount</Label>
+                  <Input
+                    id="feeAmount"
+                    type="number"
+                    value={newFee.amount}
+                    onChange={e => setNewFee({ ...newFee, amount: e.target.value })}
+                    placeholder="Enter Amount"
+                  />
+                </div>
+                <div className="mb-4">
+                  <Label htmlFor="feeDueDate">Due Date</Label>
+                  <Input
+                    id="feeDueDate"
+                    type="date"
+                    value={newFee.dueDate}
+                    onChange={e => setNewFee({ ...newFee, dueDate: e.target.value })}
+                  />
+                </div>
+                <div className="mb-4">
+                  <Label htmlFor="feeDescription">Description</Label>
+                  <Input
+                    id="feeDescription"
+                    value={newFee.description}
+                    onChange={e => setNewFee({ ...newFee, description: e.target.value })}
+                    placeholder="e.g. January Tuition"
+                  />
+                </div>
+                <div className="mb-4">
+                  <Label htmlFor="feeCourse">Course</Label>
+                  <select
+                    id="feeCourse"
+                    value={newFee.course}
+                    onChange={e => setNewFee({ ...newFee, course: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="">Select Course</option>
+                    <option value="JEE Main & Advanced">JEE Main & Advanced</option>
+                    <option value="NEET">NEET</option>
+                    <option value="Class 11th Science">Class 11th Science</option>
+                    <option value="Class 12th Science">Class 12th Science</option>
+                  </select>
+                </div>
+                <Button onClick={handleAddFee}>Add Fee</Button>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </div>
@@ -309,7 +566,7 @@ export default function AdminFinance() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Revenue (Paid Fees)</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -322,13 +579,13 @@ export default function AdminFinance() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
+            <CardTitle className="text-sm font-medium">Pending Fees ({pendingFees.length})</CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">₹{pendingAmount.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              {payments.filter(p => p.status === 'pending').length} payments pending
+              {pendingFees.length} fees pending
             </p>
           </CardContent>
         </Card>
@@ -409,19 +666,73 @@ export default function AdminFinance() {
         </Card>
       </div>
 
+      {/* Payments by Course Accordion */}
+      <div className="mb-12">
+        <h2 className="text-2xl font-bold mb-4">Individual Payments by Course</h2>
+        <div>
+          {/* Group payments by course */}
+          {Object.keys(courseData).length === 0 ? (
+            <p className="text-gray-500">No payments found.</p>
+          ) : (
+            <Accordion type="multiple" className="w-full">
+              {Object.keys(courseData).map((course) => {
+                const coursePayments = payments.filter(
+                  (p) => p.status === 'paid' && p.course === course
+                );
+                return (
+                  <AccordionItem value={course} key={course}>
+                    <AccordionTrigger className="text-lg font-semibold bg-gray-100 px-4 py-2 rounded mb-2">
+                      {course} <span className="ml-2 text-sm text-gray-500">({coursePayments.length} payments, ₹{courseData[course].toLocaleString()})</span>
+                    </AccordionTrigger>
+                    <AccordionContent className="bg-white border rounded-b px-4 py-2 mb-4">
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                          <thead>
+                            <tr>
+                              <th className="px-2 py-1 border">Student Name</th>
+                              <th className="px-2 py-1 border">Student ID</th>
+                              <th className="px-2 py-1 border">Amount</th>
+                              <th className="px-2 py-1 border">Payment Date</th>
+                              <th className="px-2 py-1 border">Payment Method</th>
+                              <th className="px-2 py-1 border">Description</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {coursePayments.map((p) => (
+                              <tr key={p.id}>
+                                <td className="px-2 py-1 border">{p.studentName}</td>
+                                <td className="px-2 py-1 border">{p.studentId}</td>
+                                <td className="px-2 py-1 border">₹{p.amount.toLocaleString()}</td>
+                                <td className="px-2 py-1 border">{format(p.paymentDate, 'MMM dd, yyyy')}</td>
+                                <td className="px-2 py-1 border">{p.paymentMethod}</td>
+                                <td className="px-2 py-1 border">{p.description}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
+          )}
+        </div>
+      </div>
+
       {/* Payments Table */}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
             <div>
-              <CardTitle>Payment Records</CardTitle>
-              <CardDescription>Manage student payments and fees</CardDescription>
+              <CardTitle>Payment & Fee Records</CardTitle>
+              <CardDescription>Manage student payments and pending fees</CardDescription>
             </div>
             <div className="flex space-x-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
-                  placeholder="Search payments..."
+                  placeholder="Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 w-64"
@@ -432,7 +743,7 @@ export default function AdminFinance() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-md"
               >
-                <option value="all">All Status</option>
+                <option value="all">All</option>
                 <option value="paid">Paid</option>
                 <option value="pending">Pending</option>
                 <option value="overdue">Overdue</option>
@@ -442,34 +753,82 @@ export default function AdminFinance() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {filteredPayments.map((payment) => (
-              <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                <div className="flex items-center space-x-4">
-                  <div>
-                    <h3 className="font-medium">{payment.studentName}</h3>
-                    <p className="text-sm text-gray-600">ID: {payment.studentId}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium">{payment.course}</p>
-                    <p className="text-sm text-gray-600">{payment.description}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-4">
-                  <div className="text-right">
-                    <p className="font-bold text-lg">₹{payment.amount.toLocaleString()}</p>
-                    <p className="text-sm text-gray-600">
-                      Due: {format(payment.dueDate, 'MMM dd, yyyy')}
-                    </p>
-                  </div>
-                  
-                  <div className="flex flex-col space-y-1">
-                    {getStatusBadge(payment.status)}
-                    {getPaymentMethodBadge(payment.paymentMethod)}
-                  </div>
-                </div>
-              </div>
-            ))}
+            {/* Unified Table: show payments or pending fees based on filter */}
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="px-2 py-1 border">Student Name</th>
+                    <th className="px-2 py-1 border">Student ID</th>
+                    <th className="px-2 py-1 border">Amount</th>
+                    <th className="px-2 py-1 border">Due Date</th>
+                    <th className="px-2 py-1 border">Status</th>
+                    <th className="px-2 py-1 border">Description</th>
+                    <th className="px-2 py-1 border">Course</th>
+                    {statusFilter === 'all' || statusFilter === 'paid' || statusFilter === 'overdue' ? (
+                      <>
+                        <th className="px-2 py-1 border">Payment Date</th>
+                        <th className="px-2 py-1 border">Payment Method</th>
+                      </>
+                    ) : null}
+                    {statusFilter === 'pending' && <th className="px-2 py-1 border">Actions</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Show pending fees if filter is 'pending' */}
+                  {statusFilter === 'pending'
+                    ? allStudentFees
+                        .filter(fee => fee.status === 'pending' && (
+                          !searchTerm ||
+                          (studentNames[fee.studentId] || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          fee.studentId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (fee.description || '').toLowerCase().includes(searchTerm.toLowerCase())
+                        ))
+                        .map(fee => (
+                          <tr key={fee.id}>
+                            <td className="px-2 py-1 border">{studentNames[fee.studentId] || ''}</td>
+                            <td className="px-2 py-1 border">{fee.studentId}</td>
+                            <td className="px-2 py-1 border">₹{fee.amount}</td>
+                            <td className="px-2 py-1 border">{fee.dueDate instanceof Date ? format(fee.dueDate, 'MMM dd, yyyy') : fee.dueDate?.toDate?.() ? format(fee.dueDate.toDate(), 'MMM dd, yyyy') : ''}</td>
+                            <td className="px-2 py-1 border">Pending</td>
+                            <td className="px-2 py-1 border">{fee.description}</td>
+                            <td className="px-2 py-1 border">{fee.course || ''}</td>
+                            <td className="px-2 py-1 border">
+                              <button
+                                className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+                                onClick={() => handleMarkAsPaid(fee.id)}
+                              >
+                                Mark as Paid
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                    : filteredPayments
+                        .filter(payment =>
+                          statusFilter === 'all' || payment.status === statusFilter
+                        )
+                        .filter(payment =>
+                          !searchTerm ||
+                          payment.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          payment.studentId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          payment.course.toLowerCase().includes(searchTerm.toLowerCase())
+                        )
+                        .map(payment => (
+                          <tr key={payment.id}>
+                            <td className="px-2 py-1 border">{payment.studentName}</td>
+                            <td className="px-2 py-1 border">{payment.studentId}</td>
+                            <td className="px-2 py-1 border">₹{payment.amount.toLocaleString()}</td>
+                            <td className="px-2 py-1 border">{format(payment.dueDate, 'MMM dd, yyyy')}</td>
+                            <td className="px-2 py-1 border">{getStatusBadge(payment.status)}</td>
+                            <td className="px-2 py-1 border">{payment.description}</td>
+                            <td className="px-2 py-1 border">{payment.course || ''}</td>
+                            <td className="px-2 py-1 border">{format(payment.paymentDate, 'MMM dd, yyyy')}</td>
+                            <td className="px-2 py-1 border">{getPaymentMethodBadge(payment.paymentMethod)}</td>
+                          </tr>
+                        ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </CardContent>
       </Card>
