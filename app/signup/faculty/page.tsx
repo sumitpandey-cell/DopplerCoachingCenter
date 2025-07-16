@@ -167,7 +167,7 @@ export default function FacultySignup() {
               </a>
             </p>
             <p className="text-xs text-gray-500">
-              Don't have a Faculty ID? Contact admin or apply for a position
+              Don&apos;t have a Faculty ID? Contact admin or apply for a position
             </p>
           </div>
         </CardContent>

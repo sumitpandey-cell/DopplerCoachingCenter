@@ -72,7 +72,7 @@ export default function StudentDashboard() {
         <h1 className="text-3xl font-bold text-gray-900">
           Welcome back, {userProfile?.name}!
         </h1>
-        <p className="text-gray-600 mt-2">Here's your academic overview</p>
+        <p className="text-gray-600 mt-2">Here&apos;s your academic overview</p>
       </div>
 
       {/* Stats Cards */}

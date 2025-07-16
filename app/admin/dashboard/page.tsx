@@ -122,7 +122,7 @@ export default function AdminDashboard() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
           <p className="text-gray-600 mt-2">
-            Welcome back, {adminUser.email}. Here's your system overview.
+            Welcome back, {adminUser.email}. Here&apos;s your system overview.
           </p>
         </div>
 
@@ -238,7 +238,7 @@ export default function AdminDashboard() {
                 <div className="p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer">
                   <Users className="h-8 w-8 text-blue-600 mb-2" />
                   <p className="font-medium">Manage Users</p>
-                  <p className="text-xs text-gray-600">Add/edit students & faculty</p>
+                  <p className="text-xs text-gray-600">Add/edit students &apos; faculty</p>
                 </div>
                 
                 <div className="p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors cursor-pointer">
