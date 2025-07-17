@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import AdminLoginButton from '@/components/AdminLoginButton';
 
 const Navbar = () => {
   const { user, userProfile } = useAuth();
@@ -25,8 +26,8 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white shadow-sm border-b">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md shadow-md">
+      <div className="container mx-auto px-4">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
@@ -61,10 +62,12 @@ const Navbar = () => {
               </DropdownMenu>
             ) : (
               <div className="flex items-center space-x-2">
-               
                 <Button variant="outline" size="lg" asChild>
                   <Link href="/join">Join Now</Link>
                 </Button>
+                <div className="ml-2">
+                  <AdminLoginButton />
+                </div>
               </div>
             )}
           </div>

@@ -209,15 +209,9 @@ export default function FacultyLoginForm() {
 
           <div className="mt-6 text-center space-y-2">
             <p className="text-sm text-gray-600">
-<<<<<<< HEAD
-              Don&apos;t have a Faculty ID?{' '}
-              <Link href="/join/faculty" className="text-green-600 hover:underline">
-                Apply for a position
-=======
               Don't have a Faculty ID?{' '}
               <Link href="/signup/faculty" className="text-green-600 hover:underline">
                 Sign Up
->>>>>>> master
               </Link>
             </p>
             <p className="text-xs text-gray-500">
