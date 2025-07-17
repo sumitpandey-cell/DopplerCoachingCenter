@@ -10,9 +10,13 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+  
+    --coaching-blue: 209 94% 56%; 
+    --tw-bg-opacity: 1;      /* Equivalent to #1d4ed8 */
+    --coaching-blue-light:  rgb(239 246 255 / var(--tw-bg-opacity, 1)); /* Equivalent to #60a5fa */
     --foreground-rgb: 255, 255, 255;
     --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0; 
   }
 }
 
@@ -24,8 +28,8 @@
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
     --secondary: 0 0% 96.1%;
     --secondary-foreground: 0 0% 9%;
     --muted: 0 0% 96.1%;

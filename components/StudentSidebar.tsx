@@ -29,6 +29,7 @@ const navigation = [
       { name: 'Payment History', href: '/student/fees/payments', icon: FileText },
     ]
   },
+  { name: 'Subject Enrollment', href: '/student/subjects', icon: BookOpen },
 ];
 
 const StudentSidebar = () => {
