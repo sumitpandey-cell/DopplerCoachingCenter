@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +9,7 @@ import OurTopCourses from '@/components/Home/OurTopCourses';
 import Toppers from '@/components/Home/Toppers';
 import Testimonials from '@/components/Home/Testimonials';
 import Gallery from '@/components/Home/Gallery';
+import Hero from '@/components/Home/Hero';
 
 
 export default function Home() {
@@ -42,20 +44,13 @@ export default function Home() {
           </div>
           
           <div className="mt-6 flex flex-col sm:flex-row gap-2 justify-center text-sm">
-            <Link href="/join/faculty" className="text-green-600 hover:underline">
-              Apply as Faculty
-            </Link>
             <span className="hidden sm:inline text-gray-400">•</span>
-            <Link href="/signup/student" className="text-blue-600 hover:underline">
-              Student Signup
-            </Link>
-            <span className="hidden sm:inline text-gray-400">•</span>
-            <Link href="/signup/faculty" className="text-green-600 hover:underline">
-              Faculty Signup
-            </Link>
           </div>
         </div>
       </section>
+
+      {/* Hero Section */}
+       {/* <Hero /> */}
 
       {/* Features Section */}
       {/* <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
