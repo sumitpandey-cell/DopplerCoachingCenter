@@ -7,7 +7,7 @@ export default function Hero() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
-    <section className="py-24 lg:py-32 bg-gradient-to-br from-blue-50 to-green-50 min-h-[85vh] flex items-center">
+    <section className="py-12 lg:py-20 bg-gradient-to-br from-blue-50 to-green-50 min-h-[85vh] flex items-center">
       <div className="container mx-auto px-4">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <div className="space-y-10">
@@ -19,7 +19,7 @@ export default function Hero() {
                 Transform Your{' '}
                 <span className="text-blue-600 relative">
                   Future
-                  <div className="absolute -bottom-2 left-0 w-full h-1 bg-blue-600/20 rounded-full"></div>
+                  <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600/20 rounded-full"></div>
                 </span>
                 {' '}with Expert Guidance
               </h1>
