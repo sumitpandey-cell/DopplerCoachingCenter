@@ -21,7 +21,7 @@ export default function Home() {
       </div>
       
       {/* Hero Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
+      {/* <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex justify-center mb-8">
             <GraduationCap className="h-20 w-20 text-blue-600" />
@@ -47,13 +47,13 @@ export default function Home() {
             <span className="hidden sm:inline text-gray-400">•</span>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Hero Section */}
-       {/* <Hero /> */}
+       <Hero />
 
       {/* Features Section */}
-      {/* <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
@@ -127,7 +127,8 @@ export default function Home() {
             </Card>
           </div>
         </div>
-      </section> */}
+      </section>
+    
       {/* Why Choose Us Section */}
         <WhyChooseUs/>
 

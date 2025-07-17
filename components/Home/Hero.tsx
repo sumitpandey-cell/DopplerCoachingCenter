@@ -1,9 +1,9 @@
 'use client';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 
-export default function HeroSection() {
+export default function Hero() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
@@ -29,14 +29,16 @@ export default function HeroSection() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-6">
+            <Link href="/login/student">
               <Button
                 size="lg"
                 className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-6 text-xl font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                onClick={() => setIsModalOpen(true)}
+                
               >
-                Start Your Journey
+                Student Portal
               </Button>
-              <Link to="/faculty-dashboard">
+              </Link>
+              <Link href="/login/faculty">
                 <Button
                   variant="outline"
                   size="lg"
