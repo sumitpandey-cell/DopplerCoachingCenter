@@ -132,6 +132,16 @@ export interface FacultyAccount {
   signedUpAt?: Date;
 }
 
+export interface Notification {
+  id?: string;
+  studentId: string;
+  title: string;
+  description: string;
+  createdAt: Date;
+  isRead: boolean;
+  type: string;
+}
+
 // Study Materials
 export const addStudyMaterial = async (material: Omit<StudyMaterial, 'id'>) => {
   const docRef = await addDoc(collection(db, 'studyMaterials'), {
@@ -481,4 +491,32 @@ export const updateStudentProfile = async (
       updatedAt: Timestamp.now(),
     });
   }
+};
+
+export const addNotification = async (notification: Omit<Notification, 'id'>) => {
+  const docRef = await addDoc(collection(db, 'notifications'), {
+    ...notification,
+    createdAt: Timestamp.fromDate(notification.createdAt),
+  });
+  return docRef.id;
+};
+
+export const getNotificationsByStudent = async (studentId: string): Promise<Notification[]> => {
+  const querySnapshot = await getDocs(
+    query(
+      collection(db, 'notifications'),
+      where('studentId', '==', studentId),
+      orderBy('createdAt', 'desc')
+    )
+  );
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+    createdAt: doc.data().createdAt.toDate(),
+  })) as Notification[];
+};
+
+export const markNotificationAsRead = async (notificationId: string) => {
+  const docRef = doc(db, 'notifications', notificationId);
+  await updateDoc(docRef, { isRead: true });
 };

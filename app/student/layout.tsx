@@ -15,6 +15,11 @@ import ProfileDropdown from '@/components/ProfileDropdown';
 import StudentSidebar from '@/components/StudentSidebar';
 import { LoaderOverlay } from '@/components/ui/loader';
 import { Suspense } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose } from '@/components/ui/drawer';
+import { getNotificationsByStudent, markNotificationAsRead, Notification } from '@/firebase/firestore';
+import { formatDistanceToNow } from 'date-fns';
+import { AnimatePresence, motion } from 'framer-motion';
 
 
 export default function StudentLayout({
@@ -26,6 +31,38 @@ export default function StudentLayout({
   const router = useRouter();
   const [dark, setDark] = useState(typeof window !== 'undefined' ? document.documentElement.classList.contains('dark') : false);
   const [notificationsOn, setNotificationsOn] = useState(true);
+  const { toast } = useToast();
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  // Load notification preference from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('dcc_notifications_on');
+      if (stored !== null) setNotificationsOn(stored === 'true');
+    }
+  }, []);
+
+  // Fetch notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (userProfile?.studentId) {
+        setNotifLoading(true);
+        const notifs = await getNotificationsByStudent(userProfile.studentId);
+        setNotifications(notifs);
+        setNotifLoading(false);
+      }
+    };
+    if (showNotifications) fetchNotifications();
+  }, [showNotifications, userProfile]);
+
+  // Mark as read
+  const handleMarkAsRead = async (id: string) => {
+    await markNotificationAsRead(id);
+    setNotifications((prev) => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  };
 
   const toggleDark = () => {
     setDark((prev) => {
@@ -39,7 +76,21 @@ export default function StudentLayout({
     });
   };
 
-  const toggleNotifications = () => setNotificationsOn((v) => !v);
+  const toggleNotifications = () => {
+    setNotificationsOn((v) => {
+      const next = !v;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('dcc_notifications_on', String(next));
+      }
+      toast({
+        title: next ? 'Notifications Enabled' : 'Notifications Disabled',
+        description: next
+          ? 'You will receive important updates and alerts.'
+          : 'You will not receive notifications until re-enabled.',
+      });
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!loading) {
@@ -69,8 +120,11 @@ export default function StudentLayout({
       <div className="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-900 shadow z-40 sticky top-0">
         <div className="font-bold text-lg text-blue-700 dark:text-blue-300">Student Portal</div>
         <div className="flex items-center gap-2">
-          <button onClick={toggleNotifications} aria-label="Toggle notifications" className={notificationsOn ? 'text-blue-600' : 'text-gray-400 dark:text-gray-500'}>
-            <Bell className="h-6 w-6" fill={notificationsOn ? 'currentColor' : 'none'} />
+          <button onClick={() => setShowNotifications((v) => !v)} aria-label="Show notifications" className="relative">
+            <Bell className={notificationsOn ? 'text-blue-600' : 'text-gray-400 dark:text-gray-500'} fill={notificationsOn ? 'currentColor' : 'none'} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 font-bold">{unreadCount}</span>
+            )}
           </button>
           <button onClick={toggleDark} aria-label="Toggle dark mode" className="ml-1">
             {dark ? <Sun className="h-6 w-6 text-yellow-400" /> : <Moon className="h-6 w-6 text-gray-700 dark:text-gray-200" />}
@@ -81,6 +135,43 @@ export default function StudentLayout({
           </div>
         </div>
       </div>
+      {/* Notification Dropdown (top right, animated) */}
+      <AnimatePresence>
+        {showNotifications && (
+          <motion.div
+            initial={{ opacity: 0, y: -30 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -30 }}
+            transition={{ duration: 0.25 }}
+            className="fixed top-4 right-4 z-[100] w-full max-w-sm bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-blue-100 dark:border-blue-800 overflow-hidden"
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+              <span className="font-bold text-blue-700 dark:text-blue-300 text-lg">Notifications</span>
+              <button onClick={() => setShowNotifications(false)} aria-label="Close notifications" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-xl">×</button>
+            </div>
+            <div className="p-4 space-y-2 max-h-[60vh] overflow-y-auto">
+              {notifLoading ? (
+                <div className="text-center text-gray-500">Loading...</div>
+              ) : notifications.length === 0 ? (
+                <div className="text-center text-gray-500">No notifications yet.</div>
+              ) : notifications.map((notif) => (
+                <div
+                  key={notif.id}
+                  className={`rounded-lg p-3 border flex flex-col gap-1 cursor-pointer transition bg-white dark:bg-gray-900 ${notif.isRead ? 'opacity-70' : 'border-blue-300 bg-blue-50 dark:bg-blue-950'}`}
+                  onClick={() => handleMarkAsRead(notif.id!)}
+                >
+                  <div className="flex items-center gap-2">
+                    {!notif.isRead && <span className="w-2 h-2 bg-blue-500 rounded-full" />}
+                    <span className="font-semibold text-gray-900 dark:text-gray-100">{notif.title}</span>
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">{notif.description}</div>
+                  <div className="text-xs text-gray-400 mt-1">{formatDistanceToNow(notif.createdAt, { addSuffix: true })}</div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="flex flex-1">
         <StudentSidebar />
         <div className="flex-1 bg-gray-50 dark:bg-gray-950 relative">
