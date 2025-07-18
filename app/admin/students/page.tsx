@@ -5,6 +5,7 @@ import { getDocs, collection } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { addStudent, updateStudent, deleteStudent, restoreStudent } from '@/firebase/firestore';
 import { getSubjects, Subject } from '@/firebase/firestore';
+import { enrollStudentInSubjects } from '@/firebase/subjects';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -159,7 +160,7 @@ export default function AdminStudents() {
         fullName: newStudent.name, // Use name as fullName
         courses: [], // Placeholder, update as needed
         password: '', // Placeholder, update as needed
-        role: 'student',
+        role: 'student' as const,
         enquiryId: '', // Placeholder, update as needed
         studentId: newStudent.studentId || `STU${Date.now()}`,
         createdAt: new Date(),
@@ -167,6 +168,10 @@ export default function AdminStudents() {
         hasSignedUp: false,
       };
       await addStudent(student);
+      // Enroll student in selected subjects and create studentFees
+      if (student.subjects && student.subjects.length > 0) {
+        await enrollStudentInSubjects(student.studentId, student.subjects);
+      }
       setNewStudent({
         name: '',
         email: '',
@@ -477,12 +482,12 @@ export default function AdminStudents() {
                       <label key={subject.id} className="flex items-center gap-1">
                         <input
                           type="checkbox"
-                          checked={newStudent.subjects.includes(subject.name)}
+                          checked={newStudent.subjects.includes(subject.id)}
                           onChange={e => setNewStudent(prev => ({
                             ...prev,
                             subjects: e.target.checked
-                              ? [...prev.subjects, subject.name]
-                              : prev.subjects.filter(s => s !== subject.name)
+                              ? [...prev.subjects, subject.id].filter((id): id is string => typeof id === 'string')
+                              : prev.subjects.filter(s => s !== subject.id)
                           }))}
                         />
                         {subject.name}

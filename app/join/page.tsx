@@ -44,11 +44,11 @@ export default function JoinNow() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubjectChange = (subject: string) => {
+  const handleSubjectChange = (subjectId: string) => {
     setFormData(prev => {
-      const subjects = prev.subjects.includes(subject)
-        ? prev.subjects.filter(s => s !== subject)
-        : [...prev.subjects, subject];
+      const subjects = prev.subjects.includes(subjectId)
+        ? prev.subjects.filter(s => s !== subjectId)
+        : [...prev.subjects, subjectId];
       return { ...prev, subjects };
     });
   };
@@ -196,26 +196,26 @@ export default function JoinNow() {
                 />
               </div>
               <div>
-                  <Label>Subjects *</Label>
-                  <div className="flex flex-wrap gap-4 mt-2">
-                    {subjectsList.map(subject => (
-                      <label key={subject.id} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          name="subjects"
-                          value={subject.name}
-                          checked={formData.subjects.includes(subject.name)}
-                          onChange={() => handleSubjectChange(subject.name)}
-                          className="accent-blue-600"
-                          required={formData.subjects.length === 0}
-                        />
-                        <span>{subject.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                  {formData.subjects.length === 0 && (
-                    <span className="text-red-500 text-xs">Please select at least one subject.</span>
-                  )}
+                <Label>Subjects *</Label>
+                <div className="flex flex-wrap gap-4 mt-2">
+                  {subjectsList.map(subject => (
+                    <label key={subject.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        name="subjects"
+                        value={subject.id}
+                        checked={formData.subjects.includes(subject.id)}
+                        onChange={() => handleSubjectChange(subject.id)}
+                        className="accent-blue-600"
+                        required={formData.subjects.length === 0}
+                      />
+                      <span>{subject.name}</span>
+                    </label>
+                  ))}
+                </div>
+                {formData.subjects.length === 0 && (
+                  <span className="text-red-500 text-xs">Please select at least one subject.</span>
+                )}
               </div>
               <div>
                 <Label htmlFor="notes">Additional Notes (Optional)</Label>

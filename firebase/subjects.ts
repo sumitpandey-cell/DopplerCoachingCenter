@@ -14,6 +14,7 @@ import {
   runTransaction
 } from 'firebase/firestore';
 import { db } from './config';
+import { createStudentFee } from './fees';
 
 export interface Subject {
   id: string;
@@ -35,6 +36,7 @@ export interface Subject {
   addDropDeadline: Date;
   createdAt: Date;
   updatedAt: Date;
+  monthlyFeeAmount?: number; // Added for fee management
 }
 
 export interface StudentEnrollment {
@@ -84,13 +86,16 @@ export const getSubjects = async (activeOnly: boolean = true): Promise<Subject[]
   }
   
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-    addDropDeadline: doc.data().addDropDeadline.toDate(),
-    createdAt: doc.data().createdAt.toDate(),
-    updatedAt: doc.data().updatedAt.toDate()
-  })) as Subject[];
+  return querySnapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      addDropDeadline: data.addDropDeadline?.toDate ? data.addDropDeadline.toDate() : data.addDropDeadline || null,
+      createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt || null,
+      updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : data.updatedAt || null,
+    };
+  }) as Subject[];
 };
 
 export const getSubjectById = async (subjectId: string): Promise<Subject | null> => {
@@ -119,8 +124,10 @@ export const enrollStudentInSubjects = async (
   const errors: string[] = [];
   const enrolledSubjects: string[] = [];
 
+  console.log('Enrolling student:', studentId, subjectIds);
+
   try {
-    return await runTransaction(db, async (transaction) => {
+    const result = await runTransaction(db, async (transaction) => {
       // Check current enrollments
       const currentEnrollmentsQuery = query(
         collection(db, 'studentEnrollments'),
@@ -210,7 +217,7 @@ export const enrollStudentInSubjects = async (
           subjectId,
           enrollmentDate: Timestamp.now(),
           status: 'enrolled',
-          credits: subject.credits,
+          credits: subject.credits ?? 0, // Ensure credits is always a number
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now()
         });
@@ -240,13 +247,49 @@ export const enrollStudentInSubjects = async (
         enrolledSubjects 
       };
     });
+
+    console.log('Enrollment result:', result);
+
+    // After transaction, for each successfully enrolled subject, create StudentFee for the current month
+    if (result.success && enrolledSubjects.length > 0) {
+      const now = new Date();
+      for (const subjectId of enrolledSubjects) {
+        // Fetch subject details
+        const subjectSnap = await getDoc(doc(db, 'subjects', subjectId));
+        if (!subjectSnap.exists()) continue;
+        const subject = subjectSnap.data();
+        // Use the subject's monthlyFeeAmount directly
+        if (!subject.monthlyFeeAmount) continue; // skip if not set
+        try {
+          console.log('Creating fee for:', studentId, subjectId, subject.monthlyFeeAmount);
+          await createStudentFee({
+            studentId,
+            studentName: '', // Optionally fetch student name
+            feeStructureId: '', // Not used anymore
+            feeStructureName: subject.name,
+            amount: subject.monthlyFeeAmount,
+            originalAmount: subject.monthlyFeeAmount,
+            totalAmount: subject.monthlyFeeAmount,
+            dueDate: now, // Enrollment date as due date
+            status: 'pending',
+            paidAmount: 0,
+            remainingAmount: subject.monthlyFeeAmount,
+            paymentHistory: [],
+            remindersSent: 0,
+            createdBy: 'system',
+            updatedAt: now,
+            createdAt: now,
+            subjectId,
+          });
+        } catch (feeError) {
+          console.error('Error creating student fee:', feeError);
+        }
+      }
+    }
+    return result;
   } catch (error) {
     console.error('Error enrolling student:', error);
-    return { 
-      success: false, 
-      errors: ['Failed to process enrollment'], 
-      enrolledSubjects: [] 
-    };
+    return { success: false, errors: ['Failed to process enrollment'], enrolledSubjects: [] };
   }
 };
 
