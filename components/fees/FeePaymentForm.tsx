@@ -42,6 +42,9 @@ export default function FeePaymentForm({ studentId, studentFeeId, receiptNumber,
         receiptNumber,
         notes: formData.notes || undefined,
         createdBy: 'admin', // Replace with actual user id if available
+        status: 'completed',
+        studentName: '', // Optionally fetch or pass real name
+        feeStructureName: '', // Optionally fetch or pass real name
       });
       toast({
         title: 'Success',

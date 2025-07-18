@@ -24,7 +24,7 @@ interface FeePaymentTableProps {
   onManualPaymentSubmit?: (paymentId: string, txnId: string, screenshotFile: File | null) => void; // Add onManualPaymentSubmit callback
 }
 
-export default function FeePaymentTable({ payments, feeIdToSubjectMap, onPay, onManualPaymentSubmit }: FeePaymentTableProps) {
+export default function FeePaymentTable({ payments, feeIdToSubjectMap = {}, onPay, onManualPaymentSubmit }: FeePaymentTableProps) {
   const [showModal, setShowModal] = useState<string | null>(null);
   const [txnId, setTxnId] = useState('');
   const [screenshot, setScreenshot] = useState<File | null>(null);
@@ -80,7 +80,7 @@ export default function FeePaymentTable({ payments, feeIdToSubjectMap, onPay, on
                         ? payment.paymentDate.toDate().toLocaleDateString()
                         : new Date(payment.paymentDate).toLocaleDateString())}
                   </TableCell>
-                  <TableCell>{feeIdToSubjectMap[payment.studentFeeId] || '-'}</TableCell>
+                  <TableCell>{feeIdToSubjectMap?.[payment.studentFeeId] || '-'}</TableCell>
                   <TableCell>{payment.notes || '-'}</TableCell>
                   <TableCell>
                     {payment.status === 'pending' ? (
@@ -144,4 +144,4 @@ export default function FeePaymentTable({ payments, feeIdToSubjectMap, onPay, on
       </CardContent>
     </Card>
   );
-} 
+}
