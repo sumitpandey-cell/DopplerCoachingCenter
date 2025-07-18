@@ -275,12 +275,24 @@ export const updateEnquiryStatus = async (
 };
 
 export const generateStudentAccount = async (accountData: Omit<StudentAccount, 'createdAt' | 'isActive'>) => {
+  // Convert subject names to IDs
+  let subjectIds: string[] = [];
+  if (Array.isArray(accountData.subjects) && accountData.subjects.length > 0) {
+    const subjectsSnap = await getDocs(collection(db, 'subjects'));
+    const nameToIdMap = new Map();
+    subjectsSnap.docs.forEach(doc => {
+      const data = doc.data();
+      if (data.name) nameToIdMap.set(data.name, doc.id);
+    });
+    subjectIds = accountData.subjects.map(name => nameToIdMap.get(name) || name); // fallback to name if not found
+  }
   const docRef = doc(db, 'studentAccounts', accountData.studentId);
   await setDoc(docRef, {
     ...accountData,
     createdAt: Timestamp.fromDate(new Date()),
     isActive: true,
-    hasSignedUp: false
+    hasSignedUp: false,
+    subjects: subjectIds,
   });
   return accountData.studentId;
 };

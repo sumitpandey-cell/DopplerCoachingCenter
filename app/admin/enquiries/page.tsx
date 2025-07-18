@@ -12,6 +12,7 @@ import { Users, Search, Phone, Mail, Calendar, UserPlus, CheckCircle, Copy } fro
 import { format } from 'date-fns';
 import { sendStudentIdEmail } from '@/lib/email-service';
 import { Loader, Skeleton } from '@/components/ui/loader';
+import { enrollStudentInSubjects } from '@/firebase/subjects';
 
 export default function AdminEnquiries() {
   const [enquiries, setEnquiries] = useState<StudentEnquiry[]>([]);
@@ -86,8 +87,15 @@ export default function AdminEnquiries() {
         subjects: enquiry.subjects || [], // Copy subjects from enquiry
         password: defaultPassword,
         enquiryId: enquiry.id,
-        role: 'student'
+        role: 'student',
+        hasSignedUp:false
       });
+
+      // Enroll student in selected subjects and create studentFees
+      if (enquiry.subjects && enquiry.subjects.length > 0) {
+        console.log("enrollStudentInSubjects")
+        await enrollStudentInSubjects(studentId, enquiry.subjects);
+      }
 
       // Update enquiry status
       await updateEnquiryStatus(enquiry.id, 'id_generated', studentId);

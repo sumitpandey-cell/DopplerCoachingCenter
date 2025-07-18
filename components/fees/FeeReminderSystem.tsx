@@ -83,8 +83,7 @@ export default function FeeReminderSystem() {
   const [selectedFees, setSelectedFees] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [reminderType, setReminderType] = useState<'email' | 'sms' | 'whatsapp'>('email');
-  const [selectedTemplate, setSelectedTemplate] = useState<ReminderTemplate>(defaultTemplates[0]);
+  // Remove reminderType and template selection, always use email
   const [customMessage, setCustomMessage] = useState('');
   const [filterDays, setFilterDays] = useState('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -126,31 +125,21 @@ export default function FeeReminderSystem() {
     }
   };
 
-  const handleSendReminders = async () => {
-    if (selectedFees.length === 0) {
-      toast({
-        title: 'Error',
-        description: 'Please select at least one fee to send reminders',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+  // Remove reminderType and template selection, always use email
+  const handleSendReminder = async (feeId: string) => {
     setSending(true);
     try {
-      await sendFeeReminders(selectedFees, reminderType);
+      await sendFeeReminders([feeId], 'email');
       toast({
         title: 'Success',
-        description: `${selectedFees.length} reminder(s) sent successfully`,
+        description: 'Reminder sent successfully',
       });
-      setSelectedFees([]);
-      setIsDialogOpen(false);
-      fetchOverdueFees(); // Refresh data
+      fetchOverdueFees();
     } catch (error) {
-      console.error('Error sending reminders:', error);
+      console.error('Error sending reminder:', error);
       toast({
         title: 'Error',
-        description: 'Failed to send reminders',
+        description: 'Failed to send reminder',
         variant: 'destructive',
       });
     } finally {
@@ -289,209 +278,40 @@ export default function FeeReminderSystem() {
       {/* Main Content */}
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Overdue Fees</CardTitle>
-              <CardDescription>Select students to send payment reminders</CardDescription>
-            </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button disabled={selectedFees.length === 0}>
-                  <Send className="h-4 w-4 mr-2" />
-                  Send Reminders ({selectedFees.length})
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Send Fee Reminders</DialogTitle>
-                  <DialogDescription>
-                    Configure and send payment reminders to selected students
-                  </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label>Reminder Type</Label>
-                    <Select value={reminderType} onValueChange={(value: 'email' | 'sms' | 'whatsapp') => {
-                      setReminderType(value);
-                      const template = defaultTemplates.find(t => t.type === value);
-                      if (template) setSelectedTemplate(template);
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="email">
-                          <div className="flex items-center gap-2">
-                            <Mail className="h-4 w-4" />
-                            Email
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="sms">
-                          <div className="flex items-center gap-2">
-                            <MessageSquare className="h-4 w-4" />
-                            SMS
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="whatsapp">
-                          <div className="flex items-center gap-2">
-                            <Phone className="h-4 w-4" />
-                            WhatsApp
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label>Template</Label>
-                    <Select value={selectedTemplate.id} onValueChange={(value) => {
-                      const template = defaultTemplates.find(t => t.id === value);
-                      if (template) setSelectedTemplate(template);
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {defaultTemplates.filter(t => t.type === reminderType).map(template => (
-                          <SelectItem key={template.id} value={template.id}>
-                            {template.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {reminderType === 'email' && (
-                    <div>
-                      <Label>Subject</Label>
-                      <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                        {selectedTemplate.subject}
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <Label>Message Template</Label>
-                    <Textarea
-                      value={selectedTemplate.content}
-                      readOnly
-                      rows={6}
-                      className="text-sm"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Variables: {'{studentName}'}, {'{feeName}'}, {'{amount}'}, {'{dueDate}'}, {'{daysOverdue}'}
-                    </p>
-                  </div>
-
-                  <div>
-                    <Label>Additional Notes (Optional)</Label>
-                    <Textarea
-                      value={customMessage}
-                      onChange={(e) => setCustomMessage(e.target.value)}
-                      placeholder="Add any additional message..."
-                      rows={2}
-                    />
-                  </div>
-
-                  <div className="flex gap-3 pt-4">
-                    <Button onClick={handleSendReminders} disabled={sending} className="flex-1">
-                      {sending ? 'Sending...' : `Send ${selectedFees.length} Reminder(s)`}
-                    </Button>
-                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
+          <CardTitle>Overdue Fees</CardTitle>
+          <CardDescription>Send email reminders to students with overdue fees.</CardDescription>
         </CardHeader>
         <CardContent>
-          {filteredFees.length === 0 ? (
-            <div className="text-center py-8">
-              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-              <p className="text-gray-500">No overdue fees found</p>
-              <p className="text-sm text-gray-400">All students are up to date with their payments</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
-                    <Checkbox
-                      checked={selectedFees.length === filteredFees.length}
-                      onCheckedChange={handleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Fee Details</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Days Overdue</TableHead>
-                  <TableHead>Reminders Sent</TableHead>
-                  <TableHead>Status</TableHead>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Student</TableHead>
+                <TableHead>Subject</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Due Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Reminders Sent</TableHead>
+                <TableHead>Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredFees.map(fee => (
+                <TableRow key={fee.id}>
+                  <TableCell>{fee.studentName || fee.studentId}</TableCell>
+                  <TableCell>{fee.feeStructureName}</TableCell>
+                  <TableCell>₹{fee.remainingAmount}</TableCell>
+                  <TableCell>{fee.dueDate && (fee.dueDate.toDate ? fee.dueDate.toDate().toLocaleDateString() : new Date(fee.dueDate).toLocaleDateString())}</TableCell>
+                  <TableCell>{getOverdueBadge(getDaysOverdue(fee.dueDate))}</TableCell>
+                  <TableCell>{fee.remindersSent || 0}</TableCell>
+                  <TableCell>
+                    <Button size="sm" onClick={() => handleSendReminder(fee.id!)} disabled={sending}>
+                      Send Reminder
+                    </Button>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredFees.map((fee) => (
-                  <TableRow key={fee.id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedFees.includes(fee.id!)}
-                        onCheckedChange={(checked) => handleSelectFee(fee.id!, checked as boolean)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{fee.studentName}</div>
-                        <div className="text-sm text-gray-500">ID: {fee.studentId}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{fee.feeStructureName}</div>
-                        <div className="text-sm text-gray-500">
-                          Due: {format(fee.dueDate instanceof Date ? fee.dueDate : fee.dueDate.toDate(), 'MMM dd, yyyy')}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-red-600">
-                        ₹{fee.remainingAmount.toLocaleString()}
-                      </div>
-                      {fee.paidAmount > 0 && (
-                        <div className="text-sm text-gray-500">
-                          Paid: ₹{fee.paidAmount.toLocaleString()}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{getDaysOverdue(fee.dueDate)} days</span>
-                        {getOverdueBadge(getDaysOverdue(fee.dueDate))}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getReminderStatusIcon(fee.remindersSent || 0)}
-                        <span>{fee.remindersSent || 0}</span>
-                      </div>
-                      {fee.lastReminderDate && (
-                        <div className="text-xs text-gray-500">
-                          Last: {format(fee.lastReminderDate instanceof Date ? fee.lastReminderDate : fee.lastReminderDate.toDate(), 'MMM dd')}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={fee.status === 'overdue' ? 'destructive' : 'secondary'}>
-                        {fee.status.replace('_', ' ').toUpperCase()}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

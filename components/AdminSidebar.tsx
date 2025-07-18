@@ -19,7 +19,8 @@ import {
   Shield,
   FileText,
   UserCheck,
-  Clock
+  Clock,
+  BarChart3
 } from 'lucide-react';
 
 const navigation = [
@@ -58,26 +59,9 @@ const navigation = [
     ]
   },
   {
-    name: 'Analytics & Reports',
-    href: '/admin/analytics',
-    icon: TrendingUp,
-    description: 'Performance Insights'
-  },
-  {
-    name: 'Financial Overview',
-    href: '/admin/finance',
+    name: 'Finance Analysis',
     icon: DollarSign,
-    description: 'Revenue & Payments'
-  },
-  {
-    name: 'Fees',
-    icon: DollarSign,
-    children: [
-      { name: 'Overview', href: '/admin/fees', icon: DollarSign },
-      { name: 'Fee Structures', href: '/admin/fees/structure', icon: FileText },
-      { name: 'Payments', href: '/admin/fees/payments', icon: TrendingUp },
-      { name: 'Reports', href: '/admin/fees/reports', icon: FileText },
-    ]
+    href: "/admin/fees"
   },
   {
     name: 'System Settings',
