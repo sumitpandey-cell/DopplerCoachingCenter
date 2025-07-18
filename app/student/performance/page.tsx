@@ -65,65 +65,70 @@ export default function Performance() {
   }, {} as Record<string, { total: number; count: number; scores: number[] }>);
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8 w-full">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Performance Board</h1>
-        <p className="text-gray-600">Track your academic progress and achievements</p>
+        <h1 className="text-3xl font-extrabold text-green-700 dark:text-green-300 mb-2 tracking-tight">Performance Board</h1>
+        <p className="text-gray-600 dark:text-gray-400">Track your academic progress and achievements</p>
       </div>
 
       {/* Performance Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Tests</CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalTests}</div>
-            <p className="text-xs text-muted-foreground">Tests completed</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{Math.round(averageScore)}%</div>
-            <p className="text-xs text-muted-foreground">Overall performance</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Highest Score</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{highestScore}%</div>
-            <p className="text-xs text-muted-foreground">Best performance</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Improvement</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${improvementTrend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {improvementTrend >= 0 ? '+' : ''}{Math.round(improvementTrend)}%
-            </div>
-            <p className="text-xs text-muted-foreground">Since first test</p>
-          </CardContent>
-        </Card>
+        <div className="transition-transform hover:scale-[1.03]">
+          <Card className="border border-blue-100 dark:border-blue-800 shadow-md rounded-xl">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Tests</CardTitle>
+              <Award className="h-4 w-4 text-blue-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{totalTests}</div>
+              <p className="text-xs text-muted-foreground">Tests completed</p>
+            </CardContent>
+          </Card>
+        </div>
+        <div className="transition-transform hover:scale-[1.03]">
+          <Card className="border border-green-100 dark:border-green-800 shadow-md rounded-xl">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-700 dark:text-green-300">{Math.round(averageScore)}%</div>
+              <p className="text-xs text-muted-foreground">Overall performance</p>
+            </CardContent>
+          </Card>
+        </div>
+        <div className="transition-transform hover:scale-[1.03]">
+          <Card className="border border-purple-100 dark:border-purple-800 shadow-md rounded-xl">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Highest Score</CardTitle>
+              <Target className="h-4 w-4 text-purple-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">{highestScore}%</div>
+              <p className="text-xs text-muted-foreground">Best performance</p>
+            </CardContent>
+          </Card>
+        </div>
+        <div className="transition-transform hover:scale-[1.03]">
+          <Card className="border border-orange-100 dark:border-orange-800 shadow-md rounded-xl">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Improvement</CardTitle>
+              <TrendingUp className="h-4 w-4 text-orange-500" />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${improvementTrend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {improvementTrend >= 0 ? '+' : ''}{Math.round(improvementTrend)}%
+              </div>
+              <p className="text-xs text-muted-foreground">Since first test</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {testResults.length > 0 ? (
         <>
           {/* Performance Charts */}
-          <Card className="mb-8">
+          <Card className="mb-8 border border-gray-100 dark:border-gray-800 shadow rounded-xl">
             <CardHeader>
               <CardTitle>Performance Analytics</CardTitle>
               <CardDescription>Visual representation of your academic progress</CardDescription>
@@ -134,7 +139,7 @@ export default function Performance() {
           </Card>
 
           {/* Subject-wise Performance */}
-          <Card>
+          <Card className="border border-blue-100 dark:border-blue-800 shadow rounded-xl">
             <CardHeader>
               <CardTitle>Subject-wise Performance</CardTitle>
               <CardDescription>Detailed breakdown by subject</CardDescription>
@@ -147,7 +152,7 @@ export default function Performance() {
                   const lowest = Math.min(...stats.scores);
                   
                   return (
-                    <div key={subject} className="p-4 bg-gray-50 rounded-lg">
+                    <div key={subject} className="p-4 bg-blue-50 dark:bg-blue-900 rounded-lg shadow">
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="font-medium">{subject}</h3>
                         <BookOpen className="h-4 w-4 text-gray-500" />

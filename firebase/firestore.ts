@@ -458,3 +458,27 @@ export const deleteSubject = async (id: string) => {
   const docRef = doc(db, 'subjects', id);
   await deleteDoc(docRef);
 };
+
+// Update student profile in both users and studentAccounts collections
+export const updateStudentProfile = async (
+  uid: string,
+  studentId: string,
+  updates: { name: string; phone?: string }
+) => {
+  // Update in users collection
+  const userRef = doc(db, 'users', uid);
+  await updateDoc(userRef, {
+    name: updates.name,
+    ...(updates.phone !== undefined ? { phone: updates.phone } : {}),
+    updatedAt: Timestamp.now(),
+  });
+  // Update in studentAccounts collection
+  if (studentId) {
+    const studentRef = doc(db, 'studentAccounts', studentId);
+    await updateDoc(studentRef, {
+      fullName: updates.name,
+      ...(updates.phone !== undefined ? { phone: updates.phone } : {}),
+      updatedAt: Timestamp.now(),
+    });
+  }
+};

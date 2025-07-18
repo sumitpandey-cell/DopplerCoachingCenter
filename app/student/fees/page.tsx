@@ -47,23 +47,28 @@ export default function StudentFeesPage() {
   const pendingFees = fees.filter(fee => fee.status === 'pending');
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-3xl font-bold">My Payment Requests</h1>
-      <FeePaymentTable
-        payments={pendingFees.map(fee => ({
-          id: fee.id,
-          receiptNumber: fee.receiptNumber || '-',
-          amount: fee.amount,
-          paymentMethod: fee.paymentMethod || '-',
-          paymentDate: fee.dueDate,
-          notes: fee.description || '-',
-          studentFeeId: fee.id,
-          status: fee.status,
-        }))}
-        feeIdToSubjectMap={Object.fromEntries(fees.map(fee => [fee.id, fee.course || fee.subject || '-']))}
-        onPay={handlePay}
-        onManualPaymentSubmit={handleManualPaymentSubmit}
-      />
+    <div className="p-4 md:p-8 w-full">
+      <div className="mb-8">
+        <h1 className="text-3xl font-extrabold text-blue-700 dark:text-blue-300 mb-2 tracking-tight">My Payment Requests</h1>
+        <p className="text-gray-600 dark:text-gray-400">View and pay your pending fees below.</p>
+      </div>
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow p-6">
+        <FeePaymentTable
+          payments={pendingFees.map(fee => ({
+            id: fee.id,
+            receiptNumber: fee.receiptNumber || '-',
+            amount: fee.amount,
+            paymentMethod: fee.paymentMethod || '-',
+            paymentDate: fee.dueDate,
+            notes: fee.description || '-',
+            studentFeeId: fee.id,
+            status: fee.status,
+          }))}
+          feeIdToSubjectMap={Object.fromEntries(fees.map(fee => [fee.id, fee.course || fee.subject || '-']))}
+          onPay={handlePay}
+          onManualPaymentSubmit={handleManualPaymentSubmit}
+        />
+      </div>
     </div>
   );
 } 

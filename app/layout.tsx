@@ -1,8 +1,10 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { AuthProvider } from '@/contexts/AuthContext';
-import Navbar from '@/components/Navbar';
+import NavbarWrapper from '@/components/NavbarWrapper';
 import Footer from '@/components/Footer';
+import { LoaderOverlay } from '@/components/ui/loader';
+import { Suspense } from 'react';
 
 
 export const metadata: Metadata = {
@@ -20,9 +22,9 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           <div className="min-h-screen flex flex-col">
-            <Navbar />
+            <NavbarWrapper />
             <main className="flex-1">
-              {children}
+              <Suspense fallback={<LoaderOverlay />}>{children}</Suspense>
             </main>
             <Footer />
           </div>

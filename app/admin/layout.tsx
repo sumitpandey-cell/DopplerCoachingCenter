@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAdminAuthenticated } from '@/firebase/admin-auth';
+import { LoaderOverlay } from '@/components/ui/loader';
+import { Suspense } from 'react';
 
 export default function AdminLayout({
   children,
@@ -28,5 +30,9 @@ export default function AdminLayout({
     );
   }
 
-  return <>{children}</>;
+  return (
+    <div className="flex-1 bg-gray-50 dark:bg-gray-950">
+      <Suspense fallback={<LoaderOverlay />}>{children}</Suspense>
+    </div>
+  );
 }
