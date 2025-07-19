@@ -20,8 +20,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose } from '@
 import { getNotificationsByStudent, markNotificationAsRead, Notification } from '@/firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import { AnimatePresence, motion } from 'framer-motion';
-import anime from 'animejs';
-
+import { animate, stagger } from 'animejs';
 
 export default function StudentLayout({
   children,
@@ -40,13 +39,12 @@ export default function StudentLayout({
 
   // Anime.js animations for topbar
   useEffect(() => {
-    anime({
-      targets: '.topbar-animate',
-      translateY: [-20, 0],
-      opacity: [0, 1],
-      duration: 800,
-      easing: 'easeOutExpo',
-      delay: anime.stagger(100)
+    animate('.square', {
+      x: '17rem',
+      delay: stagger(100),
+      duration: stagger(200, { start: 500 }),
+      loop: true,
+      alternate: true
     });
   }, []);
 
@@ -232,15 +230,17 @@ export default function StudentLayout({
           </motion.div>
         )}
       </AnimatePresence>
-      <div className="flex flex-1">
+      <div className="flex flex-1 min-h-0" style={{height: 'calc(100vh - 64px)'}}>
         <StudentSidebar />
         <motion.div 
-          className="flex-1 bg-gray-50 dark:bg-gray-950 relative"
+          className="flex-1 bg-gray-50 dark:bg-gray-950 relative overflow-auto h-full"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          <Suspense fallback={<LoaderOverlay />}>{children}</Suspense>
+          <Suspense fallback={<div className='absolute inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70'><LoaderOverlay /></div>}>
+            {children}
+          </Suspense>
           {/* Floating Profile Button for mobile */}
           <div className="md:hidden">
             <FloatingProfileButton userProfile={userProfile} />

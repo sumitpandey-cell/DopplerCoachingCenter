@@ -32,8 +32,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <SubjectsProvider>
       <div className="flex min-h-screen">
         <AdminSidebar />
-        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-950">
-          <Suspense fallback={<LoaderOverlay />}>{children}</Suspense>
+        <div className="flex flex-1 min-h-0" style={{height: 'calc(100vh - 64px)'}}>
+          <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-950 h-full relative">
+            <Suspense fallback={<div className='absolute inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70'><LoaderOverlay /></div>}>
+              {children}
+            </Suspense>
+          </div>
         </div>
       </div>
     </SubjectsProvider>

@@ -10,8 +10,7 @@ import Link from 'next/link';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import { motion } from 'framer-motion';
-import anime from 'animejs';
-
+import {animate, stagger} from "animejs"
 
 function Placeholder({ icon: Icon, title, description }: { icon: React.ElementType, title: string, description: string }) {
   return (
@@ -37,21 +36,20 @@ export default function StudentDashboard() {
   // Anime.js animations
   useEffect(() => {
     if (!loading) {
-      anime({
-        targets: '.dashboard-card',
-        translateY: [50, 0],
-        opacity: [0, 1],
-        duration: 800,
-        easing: 'easeOutExpo',
-        delay: anime.stagger(150)
+      animate('.square', {
+        x: '17rem',
+        delay: stagger(100),
+        duration: stagger(200, { start: 500 }),
+        loop: true,
+        alternate: true
       });
 
-      anime({
-        targets: '.dashboard-title',
-        translateX: [-50, 0],
-        opacity: [0, 1],
-        duration: 1000,
-        easing: 'easeOutExpo'
+      animate('.square', {
+        x: '17rem',
+        delay: stagger(100),
+        duration: stagger(200, { start: 500 }),
+        loop: true,
+        alternate: true
       });
     }
   }, [loading]);

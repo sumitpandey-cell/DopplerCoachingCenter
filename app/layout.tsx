@@ -26,7 +26,6 @@ export default function RootLayout({
             <main className="flex-1">
               <Suspense fallback={<LoaderOverlay />}>{children}</Suspense>
             </main>
-            <Footer />
           </div>
         </AuthProvider>
       </body>

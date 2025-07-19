@@ -11,7 +11,7 @@ import { useState } from 'react';
 import { LoaderOverlay } from '@/components/ui/loader';
 import { Suspense } from 'react';
 import { motion } from 'framer-motion';
-import anime from 'animejs';
+import {animate, stagger} from 'animejs';
 
 export default function FacultyLayout({
   children,
@@ -23,13 +23,12 @@ export default function FacultyLayout({
 
   // Anime.js animations for topbar
   useEffect(() => {
-    anime({
-      targets: '.faculty-topbar-animate',
-      translateY: [-20, 0],
-      opacity: [0, 1],
-      duration: 800,
-      easing: 'easeOutExpo',
-      delay: anime.stagger(100)
+    animate('.square', {
+      x: '17rem',
+      delay: stagger(100),
+      duration: stagger(200, { start: 500 }),
+      loop: true,
+      alternate: true
     });
   }, []);
 
@@ -59,7 +58,7 @@ export default function FacultyLayout({
     <div className="flex">
       <FacultySidebar />
       <motion.div 
-        className="flex-1 bg-gray-50 dark:bg-gray-950"
+        className="flex-1 bg-gray-50 dark:bg-gray-950 relative overflow-auto"
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
@@ -89,7 +88,9 @@ export default function FacultyLayout({
           </motion.div>
         </motion.div>
         
-        <Suspense fallback={<LoaderOverlay />}>{children}</Suspense>
+        <Suspense fallback={<div className='absolute inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70'><LoaderOverlay /></div>}>
+          {children}
+        </Suspense>
         {/* Floating Profile Button */}
         <FloatingProfileButton userProfile={userProfile} />
       </motion.div>
