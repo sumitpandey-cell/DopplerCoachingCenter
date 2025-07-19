@@ -13,6 +13,7 @@ import {
   writeBatch,
   runTransaction
 } from 'firebase/firestore';
+// import { doc, deleteDoc } from 'firebase/firestore';
 import { db } from './config';
 import { createStudentFee } from './fees';
 
@@ -113,6 +114,10 @@ export const getSubjectById = async (subjectId: string): Promise<Subject | null>
     } as Subject;
   }
   return null;
+};
+
+export const deleteSubject = async (subjectId: string) => {
+  await deleteDoc(doc(db, 'subjects', subjectId));
 };
 
 // Enrollment Management

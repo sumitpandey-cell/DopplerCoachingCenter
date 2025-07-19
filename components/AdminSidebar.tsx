@@ -154,6 +154,14 @@ const AdminSidebar = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  React.useEffect(() => {
+    // Expand any parent whose child is active
+    const expanded = navigation
+      .filter(item => item.children && item.children.some(child => pathname === child.href))
+      .map(item => item.name);
+    setExpandedItems(expanded);
+  }, [pathname]);
+
   const handleLogout = () => {
     adminLogout();
     router.push('/');

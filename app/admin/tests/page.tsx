@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label';
 import { FileText, Search, Plus, Edit, Trash2, Calendar, User, Award, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
+import { useSubjects } from '@/contexts/SubjectsContext';
 
 interface Test {
   id: string;
@@ -25,6 +26,7 @@ interface Test {
 }
 
 export default function AdminTests() {
+  const { subjects, loading: subjectsLoading } = useSubjects();
   const [tests, setTests] = useState<Test[]>([]);
 
   const [testResults, setTestResults] = useState<TestResult[]>([]);
@@ -32,12 +34,13 @@ export default function AdminTests() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [subjectFilter, setSubjectFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTest, setEditingTest] = useState<Test | null>(null);
 
   const [newTest, setNewTest] = useState({
     name: '',
-    subject: '',
+    subjectId: '',
     maxScore: 100,
     duration: 60,
     scheduledDate: '',
@@ -80,19 +83,27 @@ export default function AdminTests() {
     let filtered = tests;
 
     if (searchTerm) {
-      filtered = filtered.filter(test =>
-        test.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        test.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        test.createdBy.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      filtered = filtered.filter(test => {
+        const subject = subjects.find(s => s.id === test.subjectId);
+        const subjectName = subject ? subject.name : '';
+        return (
+          (test.name && test.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (subjectName && subjectName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (test.createdBy && test.createdBy.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+      });
     }
 
     if (statusFilter !== 'all') {
       filtered = filtered.filter(test => test.status === statusFilter);
     }
 
+    if (subjectFilter !== 'all') {
+      filtered = filtered.filter(test => test.subjectId === subjectFilter);
+    }
+
     setFilteredTests(filtered);
-  }, [tests, searchTerm, statusFilter]);
+  }, [tests, searchTerm, statusFilter, subjectFilter]);
 
   const handleAddTest = async () => {
     const test = {
@@ -104,7 +115,7 @@ export default function AdminTests() {
     await addTest(test);
     setNewTest({
       name: '',
-      subject: '',
+      subjectId: '',
       maxScore: 100,
       duration: 60,
       scheduledDate: '',
@@ -116,7 +127,7 @@ export default function AdminTests() {
     setTests(allTests);
     setFilteredTests(allTests);
   };
-
+  editingTest
   const handleEditTest = (test: Test) => {
     setEditingTest(test);
   };
@@ -206,19 +217,20 @@ export default function AdminTests() {
                   <Label htmlFor="subject">Subject</Label>
                   <select
                     id="subject"
-                    value={newTest.subject}
-                    onChange={(e) => setNewTest(prev => ({ ...prev, subject: e.target.value }))}
+                    value={newTest.subjectId}
+                    onChange={e => setNewTest(prev => ({ ...prev, subjectId: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    disabled={subjectsLoading}
                   >
-                    <option value="">Select Subject</option>
-                    <option value="Mathematics">Mathematics</option>
-                    <option value="Physics">Physics</option>
-                    <option value="Chemistry">Chemistry</option>
-                    <option value="Biology">Biology</option>
-                    <option value="English">English</option>
-                    <option value="Computer Science">Computer Science</option>
+                    <option value="">{subjectsLoading ? 'Loading subjects...' : 'Select Subject'}</option>
+                    {subjects.map(subject => (
+                      <option key={subject.id} value={subject.id}>{subject.name}</option>
+                    ))}
                   </select>
                 </div>
+                {(!subjectsLoading && subjects.length === 0) && (
+                  <div className="text-sm text-red-500 mt-1">No subjects found. Please add subjects first.</div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="maxScore">Maximum Score</Label>
@@ -280,6 +292,17 @@ export default function AdminTests() {
           <option value="ongoing">Ongoing</option>
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
+        </select>
+        <select
+          value={subjectFilter}
+          onChange={(e) => setSubjectFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-md"
+          disabled={subjectsLoading}
+        >
+          <option value="all">All Subjects</option>
+          {subjects.map(subject => (
+            <option key={subject.id} value={subject.id}>{subject.name}</option>
+          ))}
         </select>
       </div>
 
@@ -401,7 +424,7 @@ export default function AdminTests() {
           <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No tests found</h3>
           <p className="text-gray-500">
-            {searchTerm || statusFilter !== 'all' 
+            {searchTerm || statusFilter !== 'all' || subjectFilter !== 'all'
               ? 'Try adjusting your search or filter criteria'
               : 'Create your first test to get started'
             }
@@ -431,16 +454,18 @@ export default function AdminTests() {
                 <select
                   id="edit-subject"
                   value={editingTest.subject}
-                  onChange={(e) => setEditingTest(prev => prev ? { ...prev, subject: e.target.value } : null)}
+                  onChange={e => setEditingTest(prev => prev ? { ...prev, subjectId: e.target.value } : null)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  disabled={subjectsLoading}
                 >
-                  <option value="Mathematics">Mathematics</option>
-                  <option value="Physics">Physics</option>
-                  <option value="Chemistry">Chemistry</option>
-                  <option value="Biology">Biology</option>
-                  <option value="English">English</option>
-                  <option value="Computer Science">Computer Science</option>
+                  <option value="">{subjectsLoading ? 'Loading subjects...' : 'Select Subject'}</option>
+                  {subjects.map(subject => (
+                    <option key={subject.id} value={subject.id}>{subject.name}</option>
+                  ))}
                 </select>
+                {(!subjectsLoading && subjects.length === 0) && (
+                  <div className="text-sm text-red-500 mt-1">No subjects found. Please add subjects first.</div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
