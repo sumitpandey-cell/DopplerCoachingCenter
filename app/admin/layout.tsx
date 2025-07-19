@@ -5,12 +5,10 @@ import { useRouter } from 'next/navigation';
 import { isAdminAuthenticated } from '@/firebase/admin-auth';
 import { LoaderOverlay } from '@/components/ui/loader';
 import { Suspense } from 'react';
+import AdminSidebar from '@/components/AdminSidebar';
+import { SubjectsProvider } from '@/contexts/SubjectsContext';
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -31,8 +29,13 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="flex-1 bg-gray-50 dark:bg-gray-950">
-      <Suspense fallback={<LoaderOverlay />}>{children}</Suspense>
-    </div>
+    <SubjectsProvider>
+      <div className="flex min-h-screen">
+        <AdminSidebar />
+        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-950">
+          <Suspense fallback={<LoaderOverlay />}>{children}</Suspense>
+        </div>
+      </div>
+    </SubjectsProvider>
   );
 }

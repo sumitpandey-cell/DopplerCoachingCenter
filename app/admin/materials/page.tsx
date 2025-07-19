@@ -1,7 +1,14 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { getStudyMaterials, StudyMaterial } from '@/firebase/firestore';
+import { 
+  getStudyMaterials, 
+  StudyMaterial, 
+  addStudyMaterial, 
+  updateStudyMaterial, 
+  deleteStudyMaterial 
+} from '@/firebase/firestore';
+import { getSubjects } from '@/firebase/subjects';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,12 +23,14 @@ import { Loader, Skeleton } from '@/components/ui/loader';
 export default function AdminMaterials() {
   const [materials, setMaterials] = useState<StudyMaterial[]>([]);
   const [filteredMaterials, setFilteredMaterials] = useState<StudyMaterial[]>([]);
+  const [subjects, setSubjects] = useState<{id: string; name: string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<StudyMaterial | null>(null);
   const [buttonLoading, setButtonLoading] = useState(false);
+  const [totalDownloads, setTotalDownloads] = useState(0);
 
   const [newMaterial, setNewMaterial] = useState({
     title: '',
@@ -32,21 +41,34 @@ export default function AdminMaterials() {
   });
 
   useEffect(() => {
-    const fetchMaterials = async () => {
+    const fetchData = async () => {
       try {
         setButtonLoading(true);
-        const data = await getStudyMaterials();
-        setMaterials(data);
-        setFilteredMaterials(data);
+        
+        // Fetch materials and subjects in parallel
+        const [materialsData, subjectsData] = await Promise.all([
+          getStudyMaterials(),
+          getSubjects(false) // Fetch all subjects, not just active
+        ]);
+
+        console.log("********",subjectsData)
+        setMaterials(materialsData);
+        setFilteredMaterials(materialsData);
+        setSubjects(subjectsData);
+        
+        // Calculate total downloads (you can implement a downloads tracking system)
+        // For now, we'll use a placeholder calculation based on materials count
+        setTotalDownloads(materialsData.length * 15); // Placeholder calculation
+        
       } catch (error) {
-        console.error('Error fetching materials:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
         setButtonLoading(false);
       }
     };
 
-    fetchMaterials();
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -67,43 +89,85 @@ export default function AdminMaterials() {
     setFilteredMaterials(filtered);
   }, [materials, searchTerm, subjectFilter]);
 
-  const subjects = Array.from(new Set(materials.map(m => m.subject)));
+  const availableSubjects = Array.from(new Set(materials.map(m => m.subject)));
 
-  const handleAddMaterial = () => {
-    const material: StudyMaterial = {
-      id: `MAT${Date.now()}`,
-      ...newMaterial,
-      uploadedBy: 'Admin',
-      uploadedAt: new Date(),
-    };
+  const handleAddMaterial = async () => {
+    try {
+      setButtonLoading(true);
+      
+      const materialData = {
+        ...newMaterial,
+        uploadedBy: 'Admin', // You can get this from user context
+        uploadedAt: new Date(),
+      };
 
-    setMaterials(prev => [material, ...prev]);
-    setNewMaterial({
-      title: '',
-      description: '',
-      subject: '',
-      fileName: '',
-      fileUrl: '',
-    });
-    setShowAddModal(false);
+      const materialId = await addStudyMaterial(materialData);
+      
+      // Refresh materials list
+      const updatedMaterials = await getStudyMaterials();
+      setMaterials(updatedMaterials);
+      setFilteredMaterials(updatedMaterials);
+      
+      setNewMaterial({
+        title: '',
+        description: '',
+        subject: '',
+        fileName: '',
+        fileUrl: '',
+      });
+      setShowAddModal(false);
+    } catch (error) {
+      console.error('Error adding material:', error);
+      alert('Failed to add material. Please try again.');
+    } finally {
+      setButtonLoading(false);
+    }
   };
 
   const handleEditMaterial = (material: StudyMaterial) => {
     setEditingMaterial(material);
   };
 
-  const handleUpdateMaterial = () => {
+  const handleUpdateMaterial = async () => {
     if (!editingMaterial) return;
-
-    setMaterials(prev =>
-      prev.map(m => m.id === editingMaterial.id ? editingMaterial : m)
-    );
-    setEditingMaterial(null);
+    
+    try {
+      setButtonLoading(true);
+      
+      await updateStudyMaterial(editingMaterial.id!, editingMaterial);
+      
+      // Refresh materials list
+      const updatedMaterials = await getStudyMaterials();
+      setMaterials(updatedMaterials);
+      setFilteredMaterials(updatedMaterials);
+      
+      setEditingMaterial(null);
+    } catch (error) {
+      console.error('Error updating material:', error);
+      alert('Failed to update material. Please try again.');
+    } finally {
+      setButtonLoading(false);
+    }
   };
 
-  const handleDeleteMaterial = (materialId: string) => {
+  const handleDeleteMaterial = async (materialId: string) => {
     if (confirm('Are you sure you want to delete this material?')) {
-      setMaterials(prev => prev.filter(m => m.id !== materialId));
+      try {
+        setButtonLoading(true);
+        
+        await deleteStudyMaterial(materialId);
+        
+        // Refresh materials list
+        const updatedMaterials = await getStudyMaterials();
+        setMaterials(updatedMaterials);
+        setFilteredMaterials(updatedMaterials);
+        
+      } catch (error) {
+        console.error('Error deleting material:', error);
+        alert('Failed to delete material. Please try again.');
+      } finally {
+        setButtonLoading(false);
+      }
     }
   };
 
@@ -171,12 +235,9 @@ export default function AdminMaterials() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   >
                     <option value="">Select Subject</option>
-                    <option value="Mathematics">Mathematics</option>
-                    <option value="Physics">Physics</option>
-                    <option value="Chemistry">Chemistry</option>
-                    <option value="Biology">Biology</option>
-                    <option value="English">English</option>
-                    <option value="Computer Science">Computer Science</option>
+                    {subjects.map(subject => (
+                      <option key={subject.id} value={subject.name}>{subject.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -234,7 +295,7 @@ export default function AdminMaterials() {
         >
           <option value="all">All Subjects</option>
           {subjects.map(subject => (
-            <option key={subject} value={subject}>{subject}</option>
+            <option key={subject.id} value={subject.name}>{subject.name}</option>
           ))}
         </select>
       </div>
@@ -257,7 +318,7 @@ export default function AdminMaterials() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Subjects</p>
-                <p className="text-2xl font-bold">{subjects.length}</p>
+                <p className="text-2xl font-bold">{availableSubjects.length}</p>
               </div>
               <BookOpen className="h-8 w-8 text-green-600" />
             </div>
@@ -286,7 +347,7 @@ export default function AdminMaterials() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Downloads</p>
-                <p className="text-2xl font-bold">1,234</p>
+                <p className="text-2xl font-bold">{totalDownloads}</p>
               </div>
               <Download className="h-8 w-8 text-orange-600" />
             </div>
@@ -389,12 +450,9 @@ export default function AdminMaterials() {
                   onChange={(e) => setEditingMaterial(prev => prev ? { ...prev, subject: e.target.value } : null)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 >
-                  <option value="Mathematics">Mathematics</option>
-                  <option value="Physics">Physics</option>
-                  <option value="Chemistry">Chemistry</option>
-                  <option value="Biology">Biology</option>
-                  <option value="English">English</option>
-                  <option value="Computer Science">Computer Science</option>
+                  {subjects.map(subject => (
+                    <option key={subject.id} value={subject.name}>{subject.name}</option>
+                  ))}
                 </select>
               </div>
               <div>

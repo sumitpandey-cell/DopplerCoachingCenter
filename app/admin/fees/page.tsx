@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAdminAuthenticated } from '@/firebase/admin-auth';
-import AdminSidebar from '@/components/AdminSidebar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -211,7 +210,7 @@ export default function EnhancedFeesPage() {
 
     return (
         <div className="flex min-h-screen bg-gray-50">
-            <AdminSidebar />
+            {/* Removed AdminSidebar */}
 
             <div className="flex-1 p-8">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -387,7 +386,6 @@ export default function EnhancedFeesPage() {
                         <div className="bg-white rounded-lg shadow p-6">
                             <div className="flex justify-between items-center mb-4">
                                 <h2 className="text-2xl font-semibold text-blue-700">Subject Fee Status</h2>
-                                <Button onClick={() => setShowAddSubjectModal(true)} variant="default">Add Subject</Button>
                             </div>
                             <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
