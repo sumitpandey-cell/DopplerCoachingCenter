@@ -132,6 +132,16 @@ export interface FacultyAccount {
   signedUpAt?: Date;
 }
 
+export interface Notification {
+  id?: string;
+  studentId: string;
+  title: string;
+  description: string;
+  createdAt: Date;
+  isRead: boolean;
+  type: string;
+}
+
 // Study Materials
 export const addStudyMaterial = async (material: Omit<StudyMaterial, 'id'>) => {
   const docRef = await addDoc(collection(db, 'studyMaterials'), {
@@ -469,4 +479,56 @@ export const updateSubject = async (id: string, name: string) => {
 export const deleteSubject = async (id: string) => {
   const docRef = doc(db, 'subjects', id);
   await deleteDoc(docRef);
+};
+
+// Update student profile in both users and studentAccounts collections
+export const updateStudentProfile = async (
+  uid: string,
+  studentId: string,
+  updates: { name: string; phone?: string }
+) => {
+  // Update in users collection
+  const userRef = doc(db, 'users', uid);
+  await updateDoc(userRef, {
+    name: updates.name,
+    ...(updates.phone !== undefined ? { phone: updates.phone } : {}),
+    updatedAt: Timestamp.now(),
+  });
+  // Update in studentAccounts collection
+  if (studentId) {
+    const studentRef = doc(db, 'studentAccounts', studentId);
+    await updateDoc(studentRef, {
+      fullName: updates.name,
+      ...(updates.phone !== undefined ? { phone: updates.phone } : {}),
+      updatedAt: Timestamp.now(),
+    });
+  }
+};
+
+export const addNotification = async (notification: Omit<Notification, 'id'>) => {
+  const docRef = await addDoc(collection(db, 'notifications'), {
+    ...notification,
+    createdAt: Timestamp.fromDate(notification.createdAt),
+  });
+  return docRef.id;
+};
+
+export const getNotificationsByStudent = async (studentId: string): Promise<Notification[]> => {
+  const querySnapshot = await getDocs(
+    query(
+      collection(db, 'notifications'),
+      where('studentId', '==', studentId),
+      orderBy('createdAt', 'desc')
+    )
+  );
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+    createdAt: doc.data().createdAt.toDate(),
+  })) as Notification[];
+};
+
+export const markNotificationAsRead = async (notificationId: string) => {
+  const docRef = doc(db, 'notifications', notificationId);
+  await updateDoc(docRef, { isRead: true });
 };

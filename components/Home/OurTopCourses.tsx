@@ -63,10 +63,10 @@ const TopCourses = () => {
   ];
 
   return (
-    <section id="courses" className="py-20 lg:py-28   bg-gradient-to-br from-slate-50 to-blue-50/30">
+    <section id="courses" className="py-10 lg:py-16   bg-gradient-to-br from-slate-50 to-blue-50/30">
       <div className="container mx-auto px-4 lg:px-6 max-w-7xl">
         {/* Section Header */}
-        <div className="text-center mb-16 max-w-3xl mx-auto">
+        <div className="text-center mb-8 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
             <BookOpen className="w-4 h-4" />
             Academic Excellence
@@ -136,17 +136,6 @@ const TopCourses = () => {
               </CardFooter>
             </Card>
           ))}
-        </div>
-
-        {/* Bottom CTA */}
-        <div className="text-center mt-16">
-          <p className="text-muted-foreground mb-6 text-lg">
-            Can't find the right course? We offer customized programs too.
-          </p>
-          <Button variant="outline" size="lg" className="px-8 py-3 rounded-xl font-semibold border-2 hover:bg-primary hover:text-primary-foreground transition-all duration-300">
-            View All Courses
-            <ArrowRight className="ml-2 w-4 h-4" />
-          </Button>
         </div>
       </div>
     </section>

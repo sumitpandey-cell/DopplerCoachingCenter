@@ -182,10 +182,6 @@ export default function StudentLogin() {
 
           <div className="mt-6 text-center space-y-2">
             <p className="text-sm text-gray-600">
-              Don&apos;t have a Student ID?{' '}
-              <Link href="/join" className="text-blue-600 hover:underline">
-                Apply for admission
-                </Link>
               Don't have a Student ID?{' '}
               <Link href="/signup/student" className="text-blue-600 hover:underline">
                 Sign Up

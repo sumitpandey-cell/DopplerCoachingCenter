@@ -1,13 +1,13 @@
 'use client';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 
-export default function HeroSection() {
+export default function Hero() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
-    <section className="py-24 lg:py-32 bg-gradient-to-br from-blue-50 to-green-50 min-h-[85vh] flex items-center">
+    <section className="py-12 lg:py-20 bg-gradient-to-br from-blue-50 to-green-50 min-h-[85vh] flex items-center">
       <div className="container mx-auto px-4">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <div className="space-y-10">
@@ -19,7 +19,7 @@ export default function HeroSection() {
                 Transform Your{' '}
                 <span className="text-blue-600 relative">
                   Future
-                  <div className="absolute -bottom-2 left-0 w-full h-1 bg-blue-600/20 rounded-full"></div>
+                  <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600/20 rounded-full"></div>
                 </span>
                 {' '}with Expert Guidance
               </h1>
@@ -29,14 +29,16 @@ export default function HeroSection() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-6">
+            <Link href="/login/student">
               <Button
                 size="lg"
                 className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-6 text-xl font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                onClick={() => setIsModalOpen(true)}
+                
               >
-                Start Your Journey
+                Student Portal
               </Button>
-              <Link to="/faculty-dashboard">
+              </Link>
+              <Link href="/login/faculty">
                 <Button
                   variant="outline"
                   size="lg"
