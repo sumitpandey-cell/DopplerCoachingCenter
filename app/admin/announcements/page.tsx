@@ -75,7 +75,8 @@ export default function AdminAnnouncements() {
       setButtonLoading(true);
       await addAnnouncement(announcement); // Save to Firestore
       // Refetch announcements from Firestore
-      const data = await getAnnouncements();
+      const res = await fetch('/api/announcements');
+      const data = await res.json();
       setAnnouncements(data);
       setFilteredAnnouncements(data);
     } catch (error) {

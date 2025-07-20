@@ -5,7 +5,7 @@ import NavbarWrapper from '@/components/NavbarWrapper';
 import Footer from '@/components/Footer';
 import { LoaderOverlay } from '@/components/ui/loader';
 import { Suspense } from 'react';
-
+import { ReduxProvider } from './providers';
 
 export const metadata: Metadata = {
   title: 'Doppler Coaching Center',
@@ -20,14 +20,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AuthProvider>
-          <div className="min-h-screen flex flex-col">
-            <NavbarWrapper />
-            <main className="flex-1">
-              <Suspense fallback={<LoaderOverlay />}>{children}</Suspense>
-            </main>
-          </div>
-        </AuthProvider>
+        <ReduxProvider>
+          <AuthProvider>
+            <div className="min-h-screen flex flex-col">
+              <NavbarWrapper />
+              <main className="flex-1">
+                <Suspense fallback={<LoaderOverlay />}>{children}</Suspense>
+              </main>
+            </div>
+          </AuthProvider>
+        </ReduxProvider>
       </body>
     </html>
   );

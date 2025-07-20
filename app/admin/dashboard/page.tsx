@@ -16,10 +16,26 @@ import {
   Clock,
   Award
 } from 'lucide-react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '@/firebase/config';
-import { getFeePayments } from '@/firebase/fees';
-import { getInquiries } from '@/firebase/firestore';
+
+// Simple skeleton for stats cards
+function StatsSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+      {[...Array(5)].map((_, i) => (
+        <Card key={i} className="bg-gradient-to-br from-gray-100 to-gray-200 border-0 shadow-md animate-pulse">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div className="h-4 w-24 bg-gray-300 rounded" />
+            <div className="h-4 w-4 bg-gray-300 rounded-full" />
+          </CardHeader>
+          <CardContent>
+            <div className="h-8 w-20 bg-gray-300 rounded mb-2" />
+            <div className="h-3 w-16 bg-gray-200 rounded" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
@@ -39,72 +55,23 @@ export default function AdminDashboard() {
       router.push('/');
       return;
     }
-    
     setAdminUser(getAdminUser());
     setLoading(false);
-
     // Fetch dashboard stats
     const fetchStats = async () => {
-      // 1. Total Registered Students (isActive only)
-      const studentsSnap = await getDocs(collection(db, 'studentAccounts'));
-      const allStudents = studentsSnap.docs.map(doc => doc.data());
-      const activeStudentAccounts = allStudents.filter((s: any) => s.isActive !== false);
-      const studentsCount = activeStudentAccounts.length;
-
-      // 1b. Active/Visible Students (same logic as students page, but only isActive)
-      const [testResults, allInquiries] = await Promise.all([
-        getDocs(collection(db, 'testResults')),
-        getInquiries(),
-      ]);
-      const testResultsArr = testResults.docs.map(doc => doc.data());
-      const uniqueStudentIds = new Set(
-        testResultsArr
-          .filter((tr: any) => activeStudentAccounts.some((s: any) => s.studentId === tr.studentId))
-          .map((tr: any) => tr.studentId)
-      );
-      // Add students from admitted inquiries (only if isActive)
-      allInquiries
-        .filter((inq: any) => inq.status === 'admitted')
-        .forEach((inq: any) => {
-          const student = activeStudentAccounts.find((s: any) => s.email === inq.email);
-          if (student) uniqueStudentIds.add(student.email);
-        });
-      const activeStudentsCount = activeStudentAccounts.length;
-
-      // 2. Active Faculty
-      const facultySnap = await getDocs(collection(db, 'facultyAccounts'));
-      const facultyCount = facultySnap.size;
-
-      // 3. Monthly Revenue
-      const allPayments = await getFeePayments();
-      const now = new Date();
-      const thisMonth = now.getMonth();
-      const thisYear = now.getFullYear();
-      const monthlyPayments = allPayments.filter((p: any) => {
-        const d = p.paymentDate instanceof Date ? p.paymentDate : p.paymentDate?.toDate?.() || new Date(p.paymentDate);
-        return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
-      });
-      const monthlyRevenue = monthlyPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-
-      // 4. Pending Inquiries
-      const pendingInquiries = allInquiries.filter((inq: any) => inq.status === 'pending').length;
-
-      setStats({
-        students: studentsCount,
-        activeStudents: activeStudentsCount,
-        faculty: facultyCount,
-        revenue: monthlyRevenue,
-        pendingInquiries,
-      });
+      const res = await fetch('/api/dashboard-stats');
+      const statsData = await res.json();
+      setStats(statsData);
       setStatsLoading(false);
     };
     fetchStats();
-  }, [router]);
+  }, []);
 
-  if (loading || statsLoading) {
+  if (loading) {
+    // Only show a minimal spinner while checking auth
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
       </div>
     );
   }
@@ -124,6 +91,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Quick Stats */}
+        {statsLoading ? <StatsSkeleton /> : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <Card className="bg-gradient-to-br from-blue-100 to-indigo-100 border-0 shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -176,6 +144,7 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </div>
+        )}
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

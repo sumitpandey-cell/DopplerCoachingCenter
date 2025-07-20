@@ -18,7 +18,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
     setLoading(false);
-  }, [router]);
+  }, []); // Only run once on mount
 
   if (loading) {
     return (

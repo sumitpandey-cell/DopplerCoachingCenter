@@ -32,7 +32,8 @@ export default function AdminTimetables() {
   useEffect(() => {
     const fetchTimetable = async () => {
       try {
-        const data = await getTimetable();
+        const res = await fetch('/api/timetables');
+        const data = await res.json();
         setTimetable(data);
         setFilteredTimetable(data);
       } catch (error) {

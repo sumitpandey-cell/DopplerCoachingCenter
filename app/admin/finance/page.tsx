@@ -68,8 +68,8 @@ export default function AdminFinance() {
   const [studentNames, setStudentNames] = useState<Record<string, string>>({});
   const [studentSubjects, setStudentSubjects] = useState<string[]>([]);
   const fetchAllFees = async () => {
-    const snap = await getDocs(collection(db, 'studentFees'));
-    const allFees = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const res = await fetch('/api/all-student-fees');
+    const allFees = await res.json();
     setAllStudentFees(allFees);
   };
   useEffect(() => {

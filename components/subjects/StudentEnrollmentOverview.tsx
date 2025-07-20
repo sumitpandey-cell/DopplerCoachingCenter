@@ -63,7 +63,8 @@ export default function StudentEnrollmentOverview() {
 
   const loadEnrollments = async () => {
     try {
-      const result = await getStudentEnrollments(userProfile!.studentId!);
+      const response = await fetch(`/api/student-enrollments?studentId=${userProfile!.studentId!}`);
+      const result = await response.json();
       setEnrollments(result.enrollments);
       setTotalCredits(result.totalCredits);
     } catch (error) {
