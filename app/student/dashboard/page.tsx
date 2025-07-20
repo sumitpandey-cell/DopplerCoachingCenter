@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import { motion } from 'framer-motion';
+import PerformanceChart from '@/components/PerformanceChart';
 
 
 function Placeholder({ icon: Icon, title, description }: { icon: React.ElementType, title: string, description: string }) {
@@ -32,36 +33,40 @@ export default function StudentDashboard() {
   });
   const [recentTests, setRecentTests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]); // For leaderboard
+  const [motivation, setMotivation] = useState('Success is the sum of small efforts, repeated day in and day out.');
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!userProfile?.studentId) return;
-
       try {
         const [testResults, announcements, materials] = await Promise.all([
           getTestResultsByStudent(userProfile.studentId),
           getAnnouncements(),
           getStudyMaterials(),
         ]);
-
         const totalScore = testResults.reduce((sum, test) => sum + test.percentage, 0);
         const averageScore = testResults.length > 0 ? totalScore / testResults.length : 0;
-
         setStats({
           totalTests: testResults.length,
           averageScore: Math.round(averageScore),
           recentAnnouncements: announcements.slice(0, 3).length,
           studyMaterials: materials.length,
         });
-
         setRecentTests(testResults.slice(0, 5));
+        // Mock leaderboard data (replace with real fetch if available)
+        setLeaderboard([
+          { name: 'Priya Sharma', score: 98 },
+          { name: 'Rahul Kumar', score: 96 },
+          { name: 'Ananya Singh', score: 95 },
+          { name: userProfile?.name || 'You', score: Math.round(averageScore) },
+        ]);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchDashboardData();
   }, [userProfile]);
 
@@ -82,12 +87,19 @@ export default function StudentDashboard() {
 
   return (
     <div className="p-4 md:p-8 w-full">
-      <div className="mb-8">
-        <h1 className="text-4xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
-          Welcome back, {userProfile?.name}!
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2 text-lg">Here&apos;s your academic overview</p>
-      </div>
+      {/* Motivational Quote Card */}
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        <Card className="mb-8 bg-gradient-to-r from-blue-100 via-purple-100 to-pink-100 dark:from-blue-900 dark:via-purple-900 dark:to-pink-900 border-0 shadow-lg">
+          <CardContent className="py-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="text-2xl md:text-3xl font-bold text-blue-700 dark:text-blue-200 flex items-center gap-3">
+              <span>🌟</span> {motivation}
+            </div>
+            <div className="text-right text-sm text-gray-500 dark:text-gray-300 font-medium">
+              Welcome, <span className="text-blue-700 dark:text-blue-300 font-bold">{userProfile?.name}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -151,6 +163,46 @@ export default function StudentDashboard() {
             <CardContent>
               <div className="text-3xl font-bold text-orange-600 dark:text-orange-300">{stats.recentAnnouncements}</div>
               <p className="text-xs text-muted-foreground">Recent updates</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* Progress Chart & Leaderboard */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Progress Chart */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <Card className="shadow-md hover:shadow-lg transition-shadow rounded-xl bg-white dark:bg-gray-900 border border-purple-100 dark:border-purple-800">
+            <CardHeader className="flex flex-row items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <TrendingUp className="h-5 w-5 text-purple-500" /> Progress Chart
+              </CardTitle>
+              <CardDescription className="ml-auto">Your performance trend</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PerformanceChart testResults={recentTests} />
+            </CardContent>
+          </Card>
+        </motion.div>
+        {/* Leaderboard */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <Card className="shadow-md hover:shadow-lg transition-shadow rounded-xl bg-white dark:bg-gray-900 border border-yellow-100 dark:border-yellow-800">
+            <CardHeader className="flex flex-row items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Award className="h-5 w-5 text-yellow-500" /> Leaderboard
+              </CardTitle>
+              <CardDescription className="ml-auto">Top performers</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ol className="space-y-2">
+                {leaderboard.map((entry, idx) => (
+                  <li key={entry.name} className={`flex items-center gap-3 p-2 rounded-lg ${idx === 0 ? 'bg-yellow-50 dark:bg-yellow-900 font-bold' : ''}`}> 
+                    <span className="text-lg font-bold w-6 text-center">{idx + 1}</span>
+                    <span className="flex-1">{entry.name}</span>
+                    <Badge variant={idx === 0 ? 'default' : 'secondary'}>{entry.score}%</Badge>
+                  </li>
+                ))}
+              </ol>
             </CardContent>
           </Card>
         </motion.div>

@@ -10,6 +10,65 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { LoaderOverlay } from '@/components/ui/loader';
 import { Suspense } from 'react';
+import { addNotification, getStudentByStudentId } from '@/firebase/firestore';
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { db } from "@/firebase/config";
+
+// Fetch all students with a given subject
+export const getAllStudentsWithSubject = async (subject: string) => {
+  // You may need to implement this with a Firestore query
+  // Example:
+  const studentsSnapshot = await getDocs(
+    query(collection(db, 'studentAccounts'), where('subjects', 'array-contains', subject))
+  );
+  return studentsSnapshot.docs.map(doc => ({ studentId: doc.data().studentId, ...doc.data() }));
+};
+
+// Send a notification to all students with a subject
+export const notifyStudentsBySubject = async ({
+  subject,
+  title,
+  description,
+  type = 'announcement'
+}: {
+  subject: string;
+  title: string;
+  description: string;
+  type?: string;
+}) => {
+  const students = await getAllStudentsWithSubject(subject);
+  const now = new Date();
+  for (const student of students) {
+    await addNotification({
+      studentId: student.studentId,
+      title,
+      description,
+      createdAt: now,
+      isRead: false,
+      type,
+    });
+  }
+};
+
+export function useStudentMaterials(studentSubjects) {
+  const [materials, setMaterials] = useState([]);
+  useEffect(() => {
+    if (!studentSubjects || studentSubjects.length === 0) {
+      setMaterials([]);
+      return;
+    }
+    // Firestore 'in' query supports up to 10 subjects
+    const q = query(
+      collection(db, "studyMaterials"),
+      where("subject", "in", studentSubjects)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setMaterials(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsubscribe();
+  }, [studentSubjects]);
+  return materials;
+}
 
 export default function FacultyLayout({
   children,
