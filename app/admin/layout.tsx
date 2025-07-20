@@ -7,10 +7,13 @@ import { LoaderOverlay } from '@/components/ui/loader';
 import { Suspense } from 'react';
 import AdminSidebar from '@/components/AdminSidebar';
 import { SubjectsProvider } from '@/contexts/SubjectsContext';
+import { NavigationProvider, useNavigation } from '@/contexts/NavigationContext';
+import { Loader2 } from 'lucide-react';
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { isLoading } = useNavigation();
 
   useEffect(() => {
     if (!isAdminAuthenticated()) {
@@ -30,10 +33,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <SubjectsProvider>
-      <div className="flex min-h-screen">
+      <div className="flex h-screen">
         <AdminSidebar />
-        <div className="flex flex-1 min-h-0" style={{height: 'calc(100vh - 64px)'}}>
-          <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-950 h-full relative">
+        <div className="flex flex-1 overflow-hidden">
+          <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-950 relative">
+            {/* Loading overlay when navigating */}
+            {isLoading && (
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-gray-950/80 backdrop-blur-sm">
+                <div className="flex flex-col items-center gap-4">
+                  <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+                  <p className="text-gray-600 dark:text-gray-300 font-medium">Loading...</p>
+                </div>
+              </div>
+            )}
             <Suspense fallback={<div className='absolute inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70'><LoaderOverlay /></div>}>
               {children}
             </Suspense>
@@ -41,5 +53,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </div>
     </SubjectsProvider>
+  );
+}
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <NavigationProvider>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </NavigationProvider>
   );
 }

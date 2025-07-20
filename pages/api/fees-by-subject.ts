@@ -4,7 +4,14 @@ import { adminDb } from '@/firebase/admin';
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { subjectId, subjectName } = req.query;
   if (!subjectId && !subjectName) {
-    return res.status(400).json({ error: 'Missing subjectId or subjectName' });
+    return res.status(400).json({ 
+      error: 'Missing subjectId or subjectName',
+      message: 'Please provide either subjectId or subjectName as a query parameter',
+      examples: [
+        '/api/fees-by-subject?subjectId=eJddWpKaE6kvZPQTV5Km',
+        '/api/fees-by-subject?subjectName=Biology'
+      ]
+    });
   }
   try {
     // Query by subjectId

@@ -6,6 +6,7 @@ import { db } from '@/firebase/config';
 import { addStudent, updateStudent, deleteStudent, restoreStudent } from '@/firebase/firestore';
 import { getSubjects, Subject } from '@/firebase/firestore';
 import { enrollStudentInSubjects } from '@/firebase/subjects';
+import { useStudents, useSubjects } from '@/hooks/use-redux';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,14 +14,11 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Users, Search, Plus, Edit, Trash2, Mail, Phone, Calendar, Award, BookOpen } from 'lucide-react';
+import { Users, Search, Plus, Edit, Trash2, Mail, Phone, Calendar, Award, BookOpen, RefreshCw } from 'lucide-react';
 import { format, isValid } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Loader, Skeleton } from '@/components/ui/loader';
 import { FixedSizeList as List } from 'react-window';
-import { useSelector, useDispatch } from 'react-redux';
-import type { RootState, AppDispatch } from '../../store';
-import { fetchStudents } from '../../store';
 
 interface Student {
   id: string;
@@ -59,13 +57,11 @@ function StudentsSkeleton() {
 
 export default function AdminStudents() {
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [inactiveStudents, setInactiveStudents] = useState<Student[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [addLoading, setAddLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
@@ -75,6 +71,10 @@ export default function AdminStudents() {
   const PAGE_SIZE = 20;
   const totalPages = Math.ceil(filteredStudents.length / PAGE_SIZE);
   const paginatedStudents = filteredStudents.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Redux hooks
+  const students = useStudents();
+  const subjects = useSubjects();
 
   // In newStudent state, remove 'courses' and only keep 'subjects' and 'batches'
   const [newStudent, setNewStudent] = useState({
@@ -86,30 +86,14 @@ export default function AdminStudents() {
     subjects: [] as string[],
   });
 
-  const dispatch = useDispatch<AppDispatch>();
-  const studentsState = useSelector((state: RootState) => state.students);
-  const { data: students, status: studentsStatus, error: studentsError } = studentsState;
-
+  // Fetch data on component mount
   useEffect(() => {
-    if (studentsStatus === 'idle') {
-      dispatch(fetchStudents());
-    }
-  }, [dispatch, studentsStatus]);
-
-  useEffect(() => {
-    const fetchSubjects = async () => {
-      try {
-        const data = await getSubjects();
-        setSubjects(data);
-      } catch (error) {
-        // Optionally handle error
-      }
-    };
-    fetchSubjects();
+    students.refetch();
+    subjects.refetch();
   }, []);
 
   useEffect(() => {
-    let filtered = students;
+    let filtered = students.data || [];
 
     if (searchTerm) {
       filtered = filtered.filter(student =>
@@ -128,7 +112,7 @@ export default function AdminStudents() {
     }
 
     setFilteredStudents(filtered);
-  }, [students, searchTerm, statusFilter, subjectFilter]);
+  }, [students.data, searchTerm, statusFilter, subjectFilter]);
 
   const handleAddStudent = async () => {
     setAddLoading(true);
@@ -159,28 +143,10 @@ export default function AdminStudents() {
         subjects: [],
       });
       setShowAddModal(false);
-      // Refresh students
-      const snap = await getDocs(collection(db, 'studentAccounts'));
-      const studentsArray = snap.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          name: data.fullName || data.name || '',
-          email: data.email || '',
-          phone: data.phone || '',
-          studentId: data.studentId || '',
-          course: data.course || '',
-          batch: data.batch || '',
-          joinDate: data.createdAt && typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate() : data.createdAt || new Date(),
-          status: data.status || 'active',
-          totalTests: data.totalTests || 0,
-          averageScore: data.averageScore || 0,
-          subjects: Array.isArray(data.subjects) ? data.subjects : [],
-        } as Student;
-      }).filter((s: any) => s.status !== 'inactive');
-      // setStudents(studentsArray); // This line is removed as students are now managed by Redux
-      // setFilteredStudents(studentsArray); // This line is removed as students are now managed by Redux
+      // Refresh students data
+      students.refetch();
       // Also refresh inactive students
+      const snap = await getDocs(collection(db, 'studentAccounts'));
       const inactiveArray = snap.docs.map(doc => {
         const data = doc.data();
         return {
@@ -217,28 +183,10 @@ export default function AdminStudents() {
     try {
       await updateStudent(studentId, updates);
       setEditingStudent(null);
-      // Refresh students
-      const snap = await getDocs(collection(db, 'studentAccounts'));
-      const studentsArray = snap.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          name: data.fullName || data.name || '',
-          email: data.email || '',
-          phone: data.phone || '',
-          studentId: data.studentId || '',
-          course: data.course || '',
-          batch: data.batch || '',
-          joinDate: data.createdAt && typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate() : data.createdAt || new Date(),
-          status: data.status || 'active',
-          totalTests: data.totalTests || 0,
-          averageScore: data.averageScore || 0,
-          subjects: Array.isArray(data.subjects) ? data.subjects : [],
-        } as Student;
-      }).filter((s: any) => s.status !== 'inactive');
-      // setStudents(studentsArray); // This line is removed as students are now managed by Redux
-      // setFilteredStudents(studentsArray); // This line is removed as students are now managed by Redux
+      // Refresh students data
+      students.refetch();
       // Also refresh inactive students
+      const snap = await getDocs(collection(db, 'studentAccounts'));
       const inactiveArray = snap.docs.map(doc => {
         const data = doc.data();
         return {
@@ -266,64 +214,13 @@ export default function AdminStudents() {
 
   const handleDeleteStudent = async (studentId: string) => {
     setDeleteLoading(true);
-    if (confirm('Are you sure you want to delete this student?')) {
-      try {
-        await deleteStudent(studentId);
-        // Refresh students
-        const snap = await getDocs(collection(db, 'studentAccounts'));
-        const studentsArray = snap.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            name: data.fullName || data.name || '',
-            email: data.email || '',
-            phone: data.phone || '',
-            studentId: data.studentId || '',
-            course: data.course || '',
-            batch: data.batch || '',
-            joinDate: data.createdAt && typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate() : data.createdAt || new Date(),
-            status: data.status || 'active',
-            totalTests: data.totalTests || 0,
-            averageScore: data.averageScore || 0,
-            subjects: Array.isArray(data.subjects) ? data.subjects : [],
-          } as Student;
-        }).filter((s: any) => s.status !== 'inactive');
-        // setStudents(studentsArray); // This line is removed as students are now managed by Redux
-        // setFilteredStudents(studentsArray); // This line is removed as students are now managed by Redux
-        // Also refresh inactive students
-        const inactiveArray = snap.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            name: data.fullName || data.name || '',
-            email: data.email || '',
-            phone: data.phone || '',
-            studentId: data.studentId || '',
-            course: data.course || '',
-            batch: data.batch || '',
-            joinDate: data.createdAt && typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate() : data.createdAt || new Date(),
-            status: data.status || 'active',
-            totalTests: data.totalTests || 0,
-            averageScore: data.averageScore || 0,
-            subjects: Array.isArray(data.subjects) ? data.subjects : [],
-          } as Student;
-        }).filter((s: any) => s.status === 'inactive');
-        setInactiveStudents(inactiveArray);
-      } catch (error) {
-        console.error('Error deleting student:', error);
-      } finally {
-        setDeleteLoading(false);
-      }
-    }
-  };
-
-  const handleRestoreStudent = async (studentId: string) => {
-    setRestoreLoading(true);
     try {
-      await restoreStudent(studentId);
-      // Refresh students
+      await deleteStudent(studentId);
+      // Refresh students data
+      students.refetch();
+      // Also refresh inactive students
       const snap = await getDocs(collection(db, 'studentAccounts'));
-      const studentsArray = snap.docs.map(doc => {
+      const inactiveArray = snap.docs.map(doc => {
         const data = doc.data();
         return {
           id: doc.id,
@@ -339,9 +236,23 @@ export default function AdminStudents() {
           averageScore: data.averageScore || 0,
           subjects: Array.isArray(data.subjects) ? data.subjects : [],
         } as Student;
-      }).filter((s: any) => s.status !== 'inactive');
-      // setStudents(studentsArray); // This line is removed as students are now managed by Redux
-      // setFilteredStudents(studentsArray); // This line is removed as students are now managed by Redux
+      }).filter((s: any) => s.status === 'inactive');
+      setInactiveStudents(inactiveArray);
+    } catch (error) {
+      console.error('Error deleting student:', error);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleRestoreStudent = async (studentId: string) => {
+    setRestoreLoading(true);
+    try {
+      await restoreStudent(studentId);
+      // Refresh students data
+      students.refetch();
+      // Also refresh inactive students
+      const snap = await getDocs(collection(db, 'studentAccounts'));
       const inactiveArray = snap.docs.map(doc => {
         const data = doc.data();
         return {
@@ -370,281 +281,297 @@ export default function AdminStudents() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active':
-        return <Badge variant="default">Active</Badge>;
+        return <Badge className="bg-green-100 text-green-800">Active</Badge>;
       case 'inactive':
-        return <Badge variant="secondary">Inactive</Badge>;
+        return <Badge className="bg-red-100 text-red-800">Inactive</Badge>;
       case 'graduated':
-        return <Badge variant="outline">Graduated</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800">Graduated</Badge>;
       default:
-        return <Badge variant="secondary">Unknown</Badge>;
+        return <Badge className="bg-gray-100 text-gray-800">Unknown</Badge>;
     }
   };
 
-  if (loading) {
-    // Only show a minimal spinner while checking auth (if needed)
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  const isLoading = students.status === 'loading' || subjects.status === 'loading';
 
   return (
     <div className="flex min-h-screen bg-gray-50">
       <div className="flex-1 p-8">
-        <h1 className="text-3xl font-bold mb-6">Students</h1>
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="flex justify-end mb-4 gap-2">
-            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 rounded bg-blue-100 text-blue-700 disabled:opacity-50">Prev</button>
-            {[...Array(totalPages)].map((_, i) => (
-              <button key={i} onClick={() => setCurrentPage(i + 1)} className={`px-3 py-1 rounded ${currentPage === i + 1 ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700'}`}>{i + 1}</button>
-            ))}
-            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 rounded bg-blue-100 text-blue-700 disabled:opacity-50">Next</button>
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Students Management</h1>
+              <p className="text-gray-600 mt-2">Manage all student accounts and enrollments</p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Badge variant={students.status === 'loading' ? 'secondary' : 'default'}>
+                {students.status}
+              </Badge>
+              <Button 
+                onClick={() => {
+                  students.refetch();
+                  subjects.refetch();
+                }}
+                disabled={isLoading}
+                size="sm"
+                variant="outline"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </div>
+        </div>
+
+        {/* Error Handling */}
+        {students.status === 'failed' && (
+          <Card className="mb-8 border-red-200 bg-red-50">
+            <CardContent className="pt-6">
+              <div className="flex items-center space-x-2 text-red-700">
+                <Users className="h-4 w-4" />
+                <p>Failed to load students: {students.error}</p>
+                <Button onClick={students.refetch} size="sm" variant="outline">
+                  Retry
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         )}
-        {/* Virtualized Students Grid */}
-        {paginatedStudents.length > 0 ? (
-          <List
-            height={600}
-            itemCount={paginatedStudents.length}
-            itemSize={180}
-            width={"100%"}
-          >
-            {({ index, style }) => {
-              const student = paginatedStudents[index];
-              return (
-                <div style={style} key={student.id} className="p-2">
-                  <Card key={student.id} className="hover:shadow-2xl transition-shadow rounded-2xl border-0 bg-white/90 backdrop-blur-md">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          {/* Avatar with initials */}
-                          <div className={`w-12 h-12 flex items-center justify-center rounded-full text-lg font-bold text-white shadow ${avatarColors[student.name.charCodeAt(0) % avatarColors.length]}`}>{student.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}</div>
-                          <div>
-                            <CardTitle className="text-xl font-semibold text-gray-900">{student.name}</CardTitle>
-                            <CardDescription className="text-xs text-gray-500">ID: {student.studentId}</CardDescription>
-                          </div>
-                        </div>
-                        {getStatusBadge(student.status)}
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex items-center text-sm gap-2">
-                          <Mail className="h-4 w-4 text-blue-400" />
-                          <span className="truncate font-medium">{student.email}</span>
-                        </div>
-                        <div className="flex items-center text-sm gap-2">
-                          <Phone className="h-4 w-4 text-green-400" />
-                          <span>{student.phone}</span>
-                        </div>
-                        <div className="flex items-center text-sm gap-2">
-                          <Award className="h-4 w-4 text-purple-400" />
-                          <span className="truncate">{Array.isArray(student.subjects) ? student.subjects.join(', ') : student.subjects || '-'}</span>
-                        </div>
-                        <div className="flex items-center text-sm gap-2">
-                          <Calendar className="h-4 w-4 text-orange-400" />
-                          <span>
-                            Joined: {
-                              (() => {
-                                let joinDate: Date | null = null;
-                                if (student.joinDate) {
-                                  if (typeof student.joinDate === 'string') {
-                                    joinDate = new Date(student.joinDate);
-                                  } else if (student.joinDate.toDate) {
-                                    joinDate = student.joinDate.toDate();
-                                  } else if (student.joinDate instanceof Date) {
-                                    joinDate = student.joinDate;
-                                  } else {
-                                    joinDate = new Date(student.joinDate);
-                                  }
-                                }
-                                return joinDate && isValid(joinDate) ? format(joinDate, 'MMM dd, yyyy') : 'N/A';
-                              })()
-                            }
-                          </span>
-                        </div>
 
-                        <div className="pt-3 border-t">
-                          <div className="flex justify-between text-sm">
-                            <span>Tests: <span className="font-semibold text-blue-700">{student.totalTests}</span></span>
-                            <span>Avg: <span className="font-semibold text-purple-700">{student.averageScore}%</span></span>
-                          </div>
-                        </div>
-
-                        {/* Action buttons with tooltips */}
-                        <div className="flex space-x-2 pt-2">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEditStudent(student)}
-                                  className="flex-1 border-blue-200 hover:bg-blue-50"
-                                  disabled={editLoading}
-                                >
-                                  <Edit className="h-4 w-4 mr-1 text-blue-500" />
-                                  Edit
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Edit Student</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => handleDeleteStudent(student.id)}
-                                  className="border-red-200 hover:bg-red-50"
-                                  disabled={deleteLoading}
-                                >
-                                  <Trash2 className="h-4 w-4 text-red-500" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Delete Student</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+        {/* Filters and Search */}
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Search students..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
-              );
-            }}
-          </List>
-        ) : (
-          <div className="text-center py-12">
-            <Users className="h-16 w-16 text-blue-200 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">No students found</h3>
-            <p className="text-gray-500 text-lg">
-              {searchTerm || statusFilter !== 'all'
-                ? 'Try adjusting your search or filter criteria'
-                : 'Add your first student to get started!'}
-            </p>
-          </div>
-        )}
-
-        {/* Inactive Students Section */}
-        {inactiveStudents.length > 0 && (
-          <div className="mt-12">
-            <h2 className="text-2xl font-bold mb-4">Inactive Students</h2>
-            <div className="overflow-x-auto">
-              <table className="min-w-full bg-white border border-gray-200">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-2 border">Name</th>
-                    <th className="px-4 py-2 border">Email</th>
-                    <th className="px-4 py-2 border">Phone</th>
-                    <th className="px-4 py-2 border">Student ID</th>
-                    <th className="px-4 py-2 border">Course</th>
-                    <th className="px-4 py-2 border">Batch</th>
-                    <th className="px-4 py-2 border">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {inactiveStudents.map((student) => (
-                    <tr key={student.studentId}>
-                      <td className="px-4 py-2 border">{student.name}</td>
-                      <td className="px-4 py-2 border">{student.email}</td>
-                      <td className="px-4 py-2 border">{student.phone}</td>
-                      <td className="px-4 py-2 border">{student.studentId}</td>
-                      <td className="px-4 py-2 border">{student.course}</td>
-                      <td className="px-4 py-2 border">{student.batch}</td>
-                      <td className="px-4 py-2 border">
-                        <button
-                          className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
-                          onClick={() => handleRestoreStudent(student.studentId)}
-                          disabled={restoreLoading}
-                        >
-                          {restoreLoading ? <Loader size={16} /> : 'Restore'}
-                        </button>
-                      </td>
-                    </tr>
+              </div>
+              <div className="flex gap-2">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="graduated">Graduated</option>
+                </select>
+                <select
+                  value={subjectFilter}
+                  onChange={(e) => setSubjectFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Subjects</option>
+                  {subjects.data?.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </option>
                   ))}
-                </tbody>
-              </table>
+                </select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Students List */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Students ({filteredStudents.length})</CardTitle>
+                <CardDescription>
+                  {students.status === 'succeeded' && `${students.data.length} total students`}
+                </CardDescription>
+              </div>
+              <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Student
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Add New Student</DialogTitle>
+                    <DialogDescription>
+                      Create a new student account with basic information.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="name" className="text-right">
+                        Name
+                      </Label>
+                      <Input
+                        id="name"
+                        value={newStudent.name}
+                        onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="email" className="text-right">
+                        Email
+                      </Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={newStudent.email}
+                        onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="phone" className="text-right">
+                        Phone
+                      </Label>
+                      <Input
+                        id="phone"
+                        value={newStudent.phone}
+                        onChange={(e) => setNewStudent({ ...newStudent, phone: e.target.value })}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="studentId" className="text-right">
+                        Student ID
+                      </Label>
+                      <Input
+                        id="studentId"
+                        value={newStudent.studentId}
+                        onChange={(e) => setNewStudent({ ...newStudent, studentId: e.target.value })}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="subjects" className="text-right">
+                        Subjects
+                      </Label>
+                      <div className="col-span-3">
+                        <select
+                          multiple
+                          value={newStudent.subjects}
+                          onChange={(e) => {
+                            const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+                            setNewStudent({ ...newStudent, subjects: selectedOptions });
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {subjects.data?.map((subject) => (
+                            <option key={subject.id} value={subject.id}>
+                              {subject.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button variant="outline" onClick={() => setShowAddModal(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleAddStudent} disabled={addLoading}>
+                      {addLoading ? 'Adding...' : 'Add Student'}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <StudentsSkeleton />
+            ) : (
+              <div className="space-y-4">
+                {paginatedStudents.map((student) => (
+                  <div key={student.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                    <div className="flex items-center space-x-4">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${avatarColors[Math.abs(student.name.length) % avatarColors.length]}`}>
+                        {student.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">{student.name}</h3>
+                        <p className="text-sm text-gray-600">{student.email}</p>
+                        <p className="text-xs text-gray-500">ID: {student.studentId}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      {getStatusBadge(student.status)}
+                      <div className="flex space-x-2">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditStudent(student)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Edit Student</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteStudent(student.studentId)}
+                                disabled={deleteLoading}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Delete Student</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-center mt-6">
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <span className="px-4 py-2 text-sm text-gray-600">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
             </div>
           </div>
         )}
-
-        {/* Edit Student Dialog */}
-        {editingStudent && (
-          <Dialog open={!!editingStudent} onOpenChange={() => setEditingStudent(null)}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Student</DialogTitle>
-                <DialogDescription>Update student information</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="edit-name">Full Name</Label>
-                  <Input
-                    id="edit-name"
-                    value={editingStudent.name}
-                    onChange={(e) => setEditingStudent(prev => prev ? { ...prev, name: e.target.value } : null)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-email">Email</Label>
-                  <Input
-                    id="edit-email"
-                    type="email"
-                    value={editingStudent.email}
-                    onChange={(e) => setEditingStudent(prev => prev ? { ...prev, email: e.target.value } : null)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-phone">Phone</Label>
-                  <Input
-                    id="edit-phone"
-                    value={editingStudent.phone}
-                    onChange={(e) => setEditingStudent(prev => prev ? { ...prev, phone: e.target.value } : null)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-status">Status</Label>
-                  <select
-                    id="edit-status"
-                    value={editingStudent.status}
-                    onChange={(e) => setEditingStudent(prev => prev ? { ...prev, status: e.target.value as any } : null)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="graduated">Graduated</option>
-                  </select>
-                </div>
-                <div>
-                  <Label>Subjects</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {subjects.map(subject => (
-                      <label key={subject.id} className="flex items-center gap-1">
-                        <input
-                          type="checkbox"
-                          checked={editingStudent.subjects.includes(subject.name)}
-                          onChange={e => setEditingStudent(prev => prev ? {
-                            ...prev,
-                            subjects: e.target.checked
-                              ? [...prev.subjects, subject.name]
-                              : prev.subjects.filter(s => s !== subject.name)
-                          } : null)}
-                        />
-                        {subject.name}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <Button onClick={handleUpdateStudent} className="w-full" disabled={editLoading}>
-                  {editLoading ? <Loader size={20} className="mx-auto" /> : 'Update Student'}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
       </div>
-        
     </div>
   );
 }

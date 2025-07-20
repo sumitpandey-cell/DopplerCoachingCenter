@@ -1,10 +1,23 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { adminDb } from '@/firebase/admin';
 
+interface EnrollmentData {
+  id: string;
+  studentId: string;
+  subjectId: string;
+  credits?: number;
+  subject: { id: string; [key: string]: any } | null;
+  [key: string]: any;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { studentId } = req.query;
   if (!studentId || typeof studentId !== 'string') {
-    return res.status(400).json({ error: 'Missing or invalid studentId' });
+    return res.status(400).json({ 
+      error: 'Missing or invalid studentId',
+      message: 'Please provide a valid studentId as a query parameter',
+      example: '/api/student-enrollments?studentId=DPLR254797'
+    });
   }
   try {
     const enrollmentsSnap = await adminDb.collection('studentEnrollments')
@@ -18,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ...data,
           id: doc.id,
           subject: subjectSnap.exists ? { id: subjectSnap.id, ...subjectSnap.data() } : null,
-        };
+        } as EnrollmentData;
       })
     );
     const totalCredits = enrollments.reduce((sum, e) => sum + (e.credits || 0), 0);

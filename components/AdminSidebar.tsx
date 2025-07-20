@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useTransition, memo, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { adminLogout } from '@/firebase/admin-auth';
+import { useNavigation } from '@/contexts/NavigationContext';
 import { 
   LayoutDashboard,
   Users,
@@ -20,10 +21,10 @@ import {
   FileText,
   UserCheck,
   Clock,
-  BarChart3,
   Menu,
   X,
-  ChevronDown
+  ChevronDown,
+  Loader2
 } from 'lucide-react';
 
 const navigation = [
@@ -80,73 +81,62 @@ const navigation = [
   },
 ];
 
-// Optimized navigation item with immediate visual feedback
 const NavigationItem = memo(({ 
   item, 
   isActive, 
-  isMobile, 
-  onNavigate,
-  isPending 
+  isMobile,
+  isLoading,
+  onNavigate
 }: { 
   item: any; 
   isActive: boolean; 
-  isMobile: boolean; 
-  onNavigate: (href: string) => void; 
-  isPending: boolean;
+  isMobile: boolean;
+  isLoading: boolean;
+  onNavigate: (href: string) => void;
 }) => {
-  const [isClicked, setIsClicked] = useState(false);
   const Icon = item.icon;
   
-  const handleClick = useCallback((e: React.MouseEvent) => {
+  const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    setIsClicked(true);
     onNavigate(item.href);
-    
-    // Reset clicked state after animation
-    setTimeout(() => setIsClicked(false), 150);
-  }, [item.href, onNavigate]);
+  };
   
   return (
-    <Link
-      href={item.href}
+    <button
       onClick={handleClick}
       className={cn(
-        'flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-150 group relative overflow-hidden',
-        isActive || isClicked
-          ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg transform scale-[1.02]'
-          : 'text-gray-600 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-700 dark:hover:text-indigo-300 hover:scale-[1.01]',
-        isPending && 'opacity-75 pointer-events-none'
+        'flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group w-full text-left',
+        isActive
+          ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg'
+          : 'text-gray-600 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-700 dark:hover:text-indigo-300'
       )}
     >
-      {/* Loading indicator */}
-      {isPending && isClicked && (
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-400 to-purple-400 opacity-50" />
-      )}
-      
       <div
         className={cn(
-          'p-2 rounded-lg shadow-sm transition-all duration-150 relative z-10',
-          isActive || isClicked
-            ? 'bg-white/20 scale-110' 
-            : 'bg-white dark:bg-gray-800 group-hover:shadow-md group-hover:scale-105'
+          'p-2 rounded-lg shadow-sm transition-all duration-200',
+          isActive
+            ? 'bg-white/20' 
+            : 'bg-white dark:bg-gray-800 group-hover:shadow-md'
         )}
       >
         <Icon className={cn(
-          'h-4 w-4 transition-transform duration-150',
-          isActive || isClicked ? 'text-white' : item.color,
-          isClicked && 'rotate-12'
+          'h-4 w-4',
+          isActive ? 'text-white' : item.color
         )} />
       </div>
-      <div className="transition-all duration-150 group-hover:translate-x-1 relative z-10">
+      <div className="flex-1">
         <div className="font-medium">{item.name}</div>
         {item.description && (
           <div className="text-xs opacity-75">{item.description}</div>
         )}
       </div>
-      {(isActive || isClicked) && (
-        <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse relative z-10" />
+      {isActive && (
+        <div className="ml-auto w-2 h-2 bg-white rounded-full" />
       )}
-    </Link>
+      {isLoading && isActive && (
+        <Loader2 className="ml-auto h-4 w-4 animate-spin text-white" />
+      )}
+    </button>
   );
 });
 
@@ -155,61 +145,51 @@ NavigationItem.displayName = 'NavigationItem';
 const ChildNavigationItem = memo(({ 
   child, 
   isActive, 
-  isMobile, 
-  onNavigate,
-  isPending 
+  isMobile,
+  isLoading,
+  onNavigate
 }: { 
   child: any; 
   isActive: boolean; 
-  isMobile: boolean; 
-  onNavigate: (href: string) => void; 
-  isPending: boolean;
+  isMobile: boolean;
+  isLoading: boolean;
+  onNavigate: (href: string) => void;
 }) => {
-  const [isClicked, setIsClicked] = useState(false);
   const Icon = child.icon;
   
-  const handleClick = useCallback((e: React.MouseEvent) => {
+  const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    setIsClicked(true);
     onNavigate(child.href);
-    
-    // Reset clicked state after animation
-    setTimeout(() => setIsClicked(false), 150);
-  }, [child.href, onNavigate]);
+  };
   
   return (
-    <Link
-      href={child.href}
+    <button
       onClick={handleClick}
       className={cn(
-        'flex items-center gap-3 px-4 py-2 text-sm rounded-lg transition-all duration-150 relative overflow-hidden',
-        isActive || isClicked
-          ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md transform scale-[1.02]'
-          : 'text-gray-600 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-700 dark:hover:text-indigo-300 hover:scale-[1.01]',
-        isPending && 'opacity-75 pointer-events-none'
+        'flex items-center gap-3 px-4 py-2 text-sm rounded-lg transition-all duration-200 w-full text-left',
+        isActive
+          ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md'
+          : 'text-gray-600 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-700 dark:hover:text-indigo-300'
       )}
     >
-      {/* Loading indicator */}
-      {isPending && isClicked && (
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-400 to-purple-400 opacity-50" />
-      )}
-      
       <div
         className={cn(
-          'p-1.5 rounded-md shadow-sm transition-all duration-150 relative z-10',
-          isActive || isClicked
-            ? 'bg-white/20 scale-110' 
-            : 'bg-white dark:bg-gray-800 hover:scale-105'
+          'p-1.5 rounded-md shadow-sm transition-all duration-200',
+          isActive
+            ? 'bg-white/20' 
+            : 'bg-white dark:bg-gray-800'
         )}
       >
         <Icon className={cn(
-          'h-3 w-3 transition-transform duration-150',
-          isActive || isClicked ? 'text-white' : child.color,
-          isClicked && 'rotate-12'
+          'h-3 w-3',
+          isActive ? 'text-white' : child.color
         )} />
       </div>
-      <span className="relative z-10">{child.name}</span>
-    </Link>
+      <span className="flex-1">{child.name}</span>
+      {isLoading && isActive && (
+        <Loader2 className="h-3 w-3 animate-spin text-white" />
+      )}
+    </button>
   );
 });
 
@@ -219,117 +199,66 @@ const AdminSidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
-  const [isPending, startTransition] = useTransition();
   const [currentPath, setCurrentPath] = useState('');
-  const pathname = usePathname();
+  const pathname = usePathname() as string;
   const router = useRouter();
+  const { isLoading, setIsLoading } = useNavigation();
 
-  // Immediate pathname update for instant visual feedback
+  // Update current path when pathname changes
   useEffect(() => {
     setCurrentPath(pathname);
-  }, [pathname]);
+    setIsLoading(false);
+  }, [pathname, setIsLoading]);
 
-  // Memoize mobile check to prevent unnecessary re-renders
-  const checkMobile = useCallback(() => {
-    const mobile = window.innerWidth < 1280;
-    setIsMobile(mobile);
-    if (!mobile) {
-      setIsOpen(true);
-    }
-  }, []);
-
+  // Simple mobile detection
   useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 1280;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setIsOpen(true);
+      }
+    };
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, [checkMobile]);
+  }, []);
 
-  // Aggressive route prefetching with priority
+  // Auto-expand parent items when child is active
   useEffect(() => {
-    const prefetchRoutes = async () => {
-      const routes = [
-        '/admin/dashboard',
-        '/admin/students', 
-        '/admin/faculty',
-        '/admin/enquiries',
-        '/admin/faculty-enquiries',
-        '/admin/materials',
-        '/admin/tests',
-        '/admin/announcements',
-        '/admin/subjects',
-        '/admin/timetables',
-        '/admin/scheduling',
-        '/admin/fees',
-        '/admin/settings'
-      ];
-      
-      // Prefetch high-priority routes immediately
-      const highPriorityRoutes = ['/admin/dashboard', '/admin/students', '/admin/fees'];
-      for (const route of highPriorityRoutes) {
-        router.prefetch(route);
-      }
-      
-      // Prefetch remaining routes with slight delay
-      setTimeout(() => {
-        routes.forEach(route => {
-          if (!highPriorityRoutes.includes(route)) {
-            router.prefetch(route);
-          }
-        });
-      }, 100);
-    };
-    
-    prefetchRoutes();
-  }, [router]);
-
-  // Memoize expanded items calculation
-  const expandedItemsCalculation = useMemo(() => {
-    return navigation
-      .filter(item => item.children && item.children.some(child => currentPath === child.href))
+    const activeParents = navigation
+      .filter(item => item.children && item.children.some(child => pathname === child.href))
       .map(item => item.name);
-  }, [currentPath]);
+    setExpandedItems(activeParents);
+  }, [pathname]);
 
-  useEffect(() => {
-    setExpandedItems(expandedItemsCalculation);
-  }, [expandedItemsCalculation]);
-
-  // Optimized navigation handler with immediate feedback
-  const handleNavigation = useCallback((href: string) => {
-    // Immediate visual feedback
+  const handleNavigation = (href: string) => {
+    setIsLoading(true);
     setCurrentPath(href);
+    router.push(href);
     
-    startTransition(() => {
-      router.push(href);
-      if (isMobile) {
-        setIsOpen(false);
-      }
-    });
-  }, [router, isMobile]);
+    if (isMobile) {
+      setIsOpen(false);
+    }
+  };
 
-  // Optimized logout handler
-  const handleLogout = useCallback(() => {
-    startTransition(() => {
-      adminLogout();
-      router.push('/');
-    });
-  }, [router]);
+  const handleLogout = () => {
+    adminLogout();
+    router.push('/');
+  };
 
-  // Memoized toggle function
-  const toggleExpanded = useCallback((itemName: string) => {
+  const toggleExpanded = (itemName: string) => {
     setExpandedItems(prev => 
       prev.includes(itemName) 
         ? prev.filter(item => item !== itemName)
         : [...prev, itemName]
     );
-  }, []);
+  };
 
-  // Memoized active state checkers
-  const isActive = useCallback((href: string) => currentPath === href, [currentPath]);
-  const isParentActive = useCallback((children: any[]) => 
-    children.some(child => currentPath === child.href), [currentPath]);
-
-  // Memoized mobile toggle
-  const toggleMobile = useCallback(() => setIsOpen(!isOpen), [isOpen]);
+  const isActive = (href: string) => currentPath === href;
+  const isParentActive = (children: any[]) => 
+    children.some(child => currentPath === child.href);
 
   return (
     <>
@@ -338,15 +267,10 @@ const AdminSidebar = () => {
         <Button
           variant="outline"
           size="sm"
-          onClick={toggleMobile}
+          onClick={() => setIsOpen(!isOpen)}
           className="bg-white/90 backdrop-blur-sm shadow-lg border-indigo-200 hover:bg-indigo-50 transition-all duration-200"
         >
-          <div className={cn(
-            'transition-transform duration-300',
-            isOpen ? 'rotate-180' : 'rotate-0'
-          )}>
-            {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </div>
+          {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
       </div>
 
@@ -373,7 +297,7 @@ const AdminSidebar = () => {
         {/* Header */}
         <div className="p-6 border-b border-indigo-100 dark:border-indigo-800 bg-gradient-to-r from-indigo-600 to-purple-600">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg transform transition-transform hover:scale-105">
+            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg">
               <Shield className="h-6 w-6 text-indigo-600" />
             </div>
             <div>
@@ -384,7 +308,7 @@ const AdminSidebar = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-200 scrollbar-track-transparent">
+        <nav className="flex-1 p-4 overflow-y-auto">
           <div className="space-y-2">
             {navigation.map((item) => {
               if (item.children) {
@@ -396,29 +320,27 @@ const AdminSidebar = () => {
                     <button
                       onClick={() => toggleExpanded(item.name)}
                       className={cn(
-                        'w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-all duration-150 group relative overflow-hidden',
+                        'w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group',
                         hasActiveChild
-                          ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg transform scale-[1.02]'
-                          : 'text-gray-600 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-700 dark:hover:text-indigo-300 hover:scale-[1.01]'
+                          ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg'
+                          : 'text-gray-600 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-700 dark:hover:text-indigo-300'
                       )}
                     >
                       <div className="flex items-center gap-3">
                         <div
                           className={cn(
-                            'p-2 rounded-lg shadow-sm transition-all duration-150',
+                            'p-2 rounded-lg shadow-sm transition-all duration-200',
                             hasActiveChild 
-                              ? 'bg-white/20 scale-110' 
-                              : 'bg-white dark:bg-gray-800 group-hover:shadow-md group-hover:scale-105'
+                              ? 'bg-white/20' 
+                              : 'bg-white dark:bg-gray-800 group-hover:shadow-md'
                           )}
                         >
                           <item.icon className={cn(
-                            'h-4 w-4 transition-transform duration-150',
+                            'h-4 w-4',
                             hasActiveChild ? 'text-white' : item.color
                           )} />
                         </div>
-                        <span className="transition-transform duration-150 group-hover:translate-x-1">
-                          {item.name}
-                        </span>
+                        <span>{item.name}</span>
                       </div>
                       <div
                         className={cn(
@@ -441,8 +363,8 @@ const AdminSidebar = () => {
                             child={child}
                             isActive={isActive(child.href)}
                             isMobile={isMobile}
+                            isLoading={isLoading}
                             onNavigate={handleNavigation}
-                            isPending={isPending}
                           />
                         ))}
                       </div>
@@ -457,8 +379,8 @@ const AdminSidebar = () => {
                   item={item}
                   isActive={isActive(item.href!)}
                   isMobile={isMobile}
+                  isLoading={isLoading}
                   onNavigate={handleNavigation}
-                  isPending={isPending}
                 />
               );
             })}
@@ -469,17 +391,12 @@ const AdminSidebar = () => {
         <div className="p-4 border-t border-indigo-100 dark:border-indigo-800">
           <button
             onClick={handleLogout}
-            disabled={isPending}
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-150 group disabled:opacity-50 hover:scale-[1.01] active:scale-[0.99]"
+            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 group"
           >
-            <div
-              className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 group-hover:bg-red-100 dark:group-hover:bg-red-900/40 transition-all duration-150 group-hover:scale-105"
-            >
+            <div className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 group-hover:bg-red-100 dark:group-hover:bg-red-900/40 transition-all duration-200">
               <LogOut className="h-4 w-4" />
             </div>
-            <span className="transition-transform duration-150 group-hover:translate-x-1">
-              {isPending ? 'Logging out...' : 'Logout'}
-            </span>
+            <span>Logout</span>
           </button>
         </div>
       </div>
