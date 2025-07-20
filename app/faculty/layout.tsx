@@ -4,10 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import FacultySidebar from '@/components/FacultySidebar';
-import { Button } from '@/components/ui/button';
-import { User } from 'lucide-react';
-import Link from 'next/link';
-import { useState } from 'react';
 import { LoaderOverlay } from '@/components/ui/loader';
 import { Suspense } from 'react';
 import { motion } from 'framer-motion';
@@ -91,53 +87,7 @@ export default function FacultyLayout({
         <Suspense fallback={<div className='absolute inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70'><LoaderOverlay /></div>}>
           {children}
         </Suspense>
-        {/* Floating Profile Button */}
-        <FloatingProfileButton userProfile={userProfile} />
       </motion.div>
     </div>
-  );
-}
-
-function FloatingProfileButton({ userProfile }: { userProfile: any }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <motion.div 
-      className="fixed bottom-6 left-6 z-50"
-      initial={{ scale: 0, rotate: -180 }}
-      animate={{ scale: 1, rotate: 0 }}
-      transition={{ type: "spring", stiffness: 260, damping: 20, delay: 1 }}
-    >
-      <motion.div
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-      >
-        <Button
-        variant="outline"
-        className="flex items-center gap-2 px-4 py-2 rounded-full shadow-lg bg-white/90 hover:bg-green-50 border-green-200 backdrop-blur-sm"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <User className="h-5 w-5 text-green-600" />
-        <span className="font-semibold text-gray-800">{userProfile?.name || 'Profile'}</span>
-      </Button>
-      </motion.div>
-      {open && (
-        <motion.div 
-          className="mt-2 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-green-100 p-4 w-56"
-          initial={{ opacity: 0, y: 10, scale: 0.9 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 10, scale: 0.9 }}
-          transition={{ type: "spring", stiffness: 300, damping: 24 }}
-        >
-          <div className="mb-2 text-gray-700 font-medium">{userProfile?.name}</div>
-          <div className="mb-4 text-xs text-gray-500">{userProfile?.email}</div>
-          <motion.div whileHover={{ x: 4 }}>
-            <Link href="/faculty/profile" className="block text-green-600 hover:underline mb-2">View Profile</Link>
-          </motion.div>
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button variant="destructive" size="sm" className="w-full">Logout</Button>
-          </motion.div>
-        </motion.div>
-      )}
-    </motion.div>
   );
 }

@@ -350,6 +350,59 @@ export const getStudentByStudentId = async (studentId: string): Promise<StudentA
   return null;
 };
 
+// Get students by faculty's assigned subjects
+export const getStudentsByFacultySubjects = async (facultySubjects: string[]): Promise<StudentAccount[]> => {
+  if (!facultySubjects || facultySubjects.length === 0) {
+    return [];
+  }
+
+  const students: StudentAccount[] = [];
+  
+  // Query students for each subject the faculty teaches
+  for (const subject of facultySubjects) {
+    const querySnapshot = await getDocs(
+      query(
+        collection(db, 'studentAccounts'),
+        where('subjects', 'array-contains', subject),
+        where('isActive', '==', true)
+      )
+    );
+    
+    querySnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      // Backward compatibility: convert single course/batch to arrays if needed
+      let courses: string[] = [];
+      let batches: string[] = [];
+      if (Array.isArray(data.courses)) {
+        courses = data.courses;
+      } else if (typeof data.course === 'string') {
+        courses = [data.course];
+      }
+      if (Array.isArray(data.batches)) {
+        batches = data.batches;
+      } else if (typeof data.batch === 'string') {
+        batches = [data.batch];
+      }
+      
+      const student = {
+        ...data,
+        courses,
+        batches,
+        subjects: Array.isArray(data.subjects) ? data.subjects : [],
+        createdAt: data.createdAt.toDate(),
+        signedUpAt: data.signedUpAt ? data.signedUpAt.toDate() : undefined
+      } as StudentAccount;
+      
+      // Avoid duplicates
+      if (!students.find(s => s.studentId === student.studentId)) {
+        students.push(student);
+      }
+    });
+  }
+  
+  return students;
+};
+
 // Faculty Enquiries
 export const addFacultyEnquiry = async (enquiry: Omit<FacultyEnquiry, 'id'>) => {
   const docRef = await addDoc(collection(db, 'facultyEnquiries'), {
@@ -405,6 +458,20 @@ export const getFacultyByFacultyId = async (facultyId: string): Promise<FacultyA
       createdAt: data.createdAt.toDate(),
       signedUpAt: data.signedUpAt ? data.signedUpAt.toDate() : undefined
     } as FacultyAccount;
+  }
+  return null;
+};
+
+// Get faculty profile by user UID (for authenticated faculty)
+export const getFacultyProfileByUID = async (uid: string): Promise<FacultyAccount | null> => {
+  const userRef = doc(db, 'users', uid);
+  const userSnap = await getDoc(userRef);
+  
+  if (userSnap.exists()) {
+    const userData = userSnap.data();
+    if (userData.role === 'faculty' && userData.facultyId) {
+      return await getFacultyByFacultyId(userData.facultyId);
+    }
   }
   return null;
 };
@@ -544,4 +611,80 @@ export const getNotificationsByStudent = async (studentId: string): Promise<Noti
 export const markNotificationAsRead = async (notificationId: string) => {
   const docRef = doc(db, 'notifications', notificationId);
   await updateDoc(docRef, { isRead: true });
+};
+
+// Update/Announcement/Test Model
+export interface FacultyUpdate {
+  id?: string;
+  title: string;
+  content: string;
+  subjectId: string;
+  facultyId: string;
+  type: 'announcement' | 'result' | 'test' | string;
+  createdAt: Date;
+  notifyAllFacultyStudents?: boolean;
+}
+
+// Add a new update/announcement/test
+export const addFacultyUpdate = async (update: Omit<FacultyUpdate, 'id' | 'createdAt'> & { createdAt?: Date }) => {
+  const docRef = await addDoc(collection(db, 'facultyUpdates'), {
+    ...update,
+    createdAt: update.createdAt ? Timestamp.fromDate(update.createdAt) : Timestamp.now(),
+    notifyAllFacultyStudents: !!update.notifyAllFacultyStudents,
+  });
+  return docRef.id;
+};
+
+// Fetch updates for a student based on subject and faculty association
+export const getUpdatesForStudent = async (studentId: string): Promise<FacultyUpdate[]> => {
+  // 1. Get student account
+  const student = await getStudentByStudentId(studentId);
+  if (!student) return [];
+  const studentSubjects = student.subjects || [];
+
+  // 2. Get all facultyIds for student's subjects
+  // (Assume you have a way to get faculty for a subject, e.g., subject-faculty mapping)
+  // For now, let's fetch all facultyIds from all subjects the student is enrolled in
+  // (You may want to optimize this based on your schema)
+  const facultyIdsSet = new Set<string>();
+  for (const subject of studentSubjects) {
+    // Assume you have a function getFacultyIdsBySubject(subjectId)
+    // For now, let's fetch all faculty accounts and filter
+    const facultyQuery = await getDocs(collection(db, 'facultyAccounts'));
+    facultyQuery.docs.forEach(doc => {
+      const data = doc.data();
+      if (Array.isArray(data.subjects) && data.subjects.includes(subject)) {
+        facultyIdsSet.add(data.facultyId);
+      }
+    });
+  }
+  const facultyIds = Array.from(facultyIdsSet);
+
+  // 3. Fetch all updates by these faculty
+  const updatesQuery = await getDocs(collection(db, 'facultyUpdates'));
+  const updates: FacultyUpdate[] = [];
+  updatesQuery.docs.forEach(doc => {
+    const data = doc.data();
+    const update: FacultyUpdate = {
+      id: doc.id,
+      title: data.title || '',
+      content: data.content || '',
+      subjectId: data.subjectId || '',
+      facultyId: data.facultyId || '',
+      type: data.type || 'announcement',
+      createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+      notifyAllFacultyStudents: !!data.notifyAllFacultyStudents,
+    };
+    // Visibility logic
+    if (
+      studentSubjects.includes(update.subjectId) ||
+      update.notifyAllFacultyStudents ||
+      (facultyIds.includes(update.facultyId) && !studentSubjects.includes(update.subjectId))
+    ) {
+      updates.push(update);
+    }
+  });
+  // Sort by date desc
+  updates.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  return updates;
 };
