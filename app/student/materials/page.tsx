@@ -8,8 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { BookOpen, Download, Search, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function StudyMaterials() {
+  const { userProfile, loading: userLoading } = useAuth();
   const [materials, setMaterials] = useState<StudyMaterial[]>([]);
   const [filteredMaterials, setFilteredMaterials] = useState<StudyMaterial[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,35 +23,38 @@ export default function StudyMaterials() {
       try {
         const data = await getStudyMaterials();
         setMaterials(data);
-        setFilteredMaterials(data);
       } catch (error) {
         console.error('Error fetching materials:', error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchMaterials();
   }, []);
 
+  // Filter materials by student subjects
   useEffect(() => {
-    let filtered = materials;
-
+    if (userLoading || loading) return;
+    const subjects: string[] = Array.isArray((userProfile as any)?.subjects) ? (userProfile as any).subjects : [];
+    if (subjects.length === 0) {
+      setFilteredMaterials([]);
+      return;
+    }
+    let filtered = materials.filter(mat => subjects.includes(mat.subject));
     if (searchTerm) {
       filtered = filtered.filter(material =>
         material.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         material.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-
     if (selectedSubject !== 'all') {
       filtered = filtered.filter(material => material.subject === selectedSubject);
     }
-
     setFilteredMaterials(filtered);
-  }, [materials, searchTerm, selectedSubject]);
+  }, [materials, searchTerm, selectedSubject, userProfile, userLoading, loading]);
 
-  const subjects = Array.from(new Set(materials.map(m => m.subject)));
+  // Only show subjects the student has opted for
+  const subjects: string[] = Array.isArray((userProfile as any)?.subjects) ? (userProfile as any).subjects : [];
 
   const handleDownload = (url: string, fileName: string) => {
     const link = document.createElement('a');
@@ -61,7 +66,7 @@ export default function StudyMaterials() {
     document.body.removeChild(link);
   };
 
-  if (loading) {
+  if (userLoading || loading) {
     return (
       <div className="p-8">
         <div className="animate-pulse space-y-4">
@@ -82,7 +87,6 @@ export default function StudyMaterials() {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Study Materials</h1>
         <p className="text-gray-600">Access all your course materials and resources</p>
       </div>
-
       {/* Filters */}
       <div className="mb-6 flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
@@ -100,12 +104,11 @@ export default function StudyMaterials() {
           className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="all">All Subjects</option>
-          {subjects.map(subject => (
+          {subjects.map((subject: string) => (
             <option key={subject} value={subject}>{subject}</option>
           ))}
         </select>
       </div>
-
       {/* Materials Grid */}
       {filteredMaterials.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
