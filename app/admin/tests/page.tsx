@@ -380,7 +380,10 @@ export default function AdminTests() {
                   </div>
                   <div className="flex items-center text-sm">
                     <Calendar className="h-4 w-4 mr-2 text-gray-500" />
-                    <span>{format(test.scheduledDate, 'MMM dd, yyyy • h:mm a')}</span>
+                    <span>{format(
+                      test.scheduledDate?.toDate ? test.scheduledDate.toDate() : new Date(test.scheduledDate),
+                      'MMM dd, yyyy • h:mm a'
+                    )}</span>
                   </div>
                   <div className="flex items-center text-sm">
                     <FileText className="h-4 w-4 mr-2 text-gray-500" />

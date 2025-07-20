@@ -38,7 +38,7 @@ import type { RootState, AppDispatch } from '../../store';
 import { fetchFees } from '../../store';
 import { getSubjects } from '@/firebase/subjects';
 import { getStudentByStudentId } from '@/firebase/firestore';
-import { getStudentFees, sendFeeReminders } from '@/firebase/fees';
+import { getStudentFees, sendFeeReminders, getFeeAnalytics, getFeePayments, getFeeStructures, getAllStudentFees } from '@/firebase/fees';
 import { collection, getDocs, query, where, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 
@@ -103,42 +103,96 @@ export default function EnhancedFeesPage() {
         getSubjects(false).then(setSubjects);
     }, []);
 
+    // Set loading to false after initial data is loaded
+    React.useEffect(() => {
+        if (feesStatus !== 'loading' && subjects.length > 0) {
+            setLoading(false);
+        }
+    }, [feesStatus, subjects.length]);
+
+    // Load analytics data
+    React.useEffect(() => {
+        const loadAnalytics = async () => {
+            try {
+                // Get actual fee analytics from Firebase
+                const analyticsData = await getFeeAnalytics();
+                setAnalytics(analyticsData);
+                
+                // Get actual fee payments from Firebase
+                const paymentsData = await getFeePayments();
+                const recentPayments = paymentsData.slice(0, 5); // Get last 5 payments
+                setRecentPayments(recentPayments);
+                setAllPayments(paymentsData);
+            } catch (error) {
+                console.error('Failed to load analytics:', error);
+                // Set default analytics to prevent loading state
+                setAnalytics({
+                    totalCollected: 0,
+                    totalDue: 0,
+                    totalOverdue: 0,
+                    totalStudentsWithDues: 0,
+                    paymentsThisMonth: 0
+                });
+                setRecentPayments([]);
+                setAllPayments([]);
+            }
+        };
+        
+        if (!loading) {
+            loadAnalytics();
+        }
+    }, [loading]);
+
     // Load all student fees for the selected subject (support both subjectId and subject name for legacy data)
     React.useEffect(() => {
         if (!selectedSubject) return;
         setLoadingTable(true);
         (async () => {
-            // Find the selected subject's name
-            const subjectObj = subjects.find(s => s.id === selectedSubject);
-            const subjectName = subjectObj?.name;
-            // Query for fees with subjectId or subject name
-            const res = await fetch(`/api/fees-by-subject?subjectId=${selectedSubject}&subjectName=${encodeURIComponent(subjectName || '')}`);
-            const fees = await res.json();
-            // For each fee, get student info
-            const rows = await Promise.all(fees.map(async (fee: any) => {
-                const student = await getStudentByStudentId(fee.studentId);
-                let month = '-';
-                if (fee.dueDate) {
-                    try {
-                        const dateObj = fee.dueDate instanceof Date ? fee.dueDate : (fee.dueDate.toDate ? fee.dueDate.toDate() : new Date(fee.dueDate));
-                        if (!isNaN(dateObj.getTime())) {
-                            month = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
-                        }
-                    } catch { }
-                }
-                return {
-                    studentId: student?.studentId,
-                    name: student?.fullName,
-                    email: student?.email,
-                    phone: student?.phone,
-                    month,
-                    feeStatus: fee.status,
-                    amount: fee.amount,
-                    feeId: fee.id,
-                };
-            }));
-            setStudentFeeRows(rows);
-            setLoadingTable(false);
+            try {
+                // Get all student fees from Firebase using the new function
+                const allFees = await getAllStudentFees();
+                
+                // Filter fees by selected subject
+                const subjectObj = subjects.find(s => s.id === selectedSubject);
+                const subjectName = subjectObj?.name;
+                
+                const filteredFees = allFees.filter((fee: any) => {
+                    // Check if fee matches the selected subject
+                    return fee.subjectId === selectedSubject || 
+                           fee.subject === subjectName || 
+                           fee.feeStructureName?.includes(subjectName);
+                });
+                
+                // For each fee, get student info
+                const rows = await Promise.all(filteredFees.map(async (fee: any) => {
+                    const student = await getStudentByStudentId(fee.studentId);
+                    let month = '-';
+                    if (fee.dueDate) {
+                        try {
+                            const dateObj = fee.dueDate instanceof Date ? fee.dueDate : (fee.dueDate.toDate ? fee.dueDate.toDate() : new Date(fee.dueDate));
+                            if (!isNaN(dateObj.getTime())) {
+                                month = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
+                            }
+                        } catch { }
+                    }
+                    return {
+                        studentId: student?.studentId,
+                        name: student?.fullName,
+                        email: student?.email,
+                        phone: student?.phone,
+                        month,
+                        feeStatus: fee.status,
+                        amount: fee.amount,
+                        feeId: fee.id,
+                    };
+                }));
+                setStudentFeeRows(rows);
+            } catch (error) {
+                console.error('Error loading student fees:', error);
+                setStudentFeeRows([]);
+            } finally {
+                setLoadingTable(false);
+            }
         })();
     }, [selectedSubject, subjects]);
 

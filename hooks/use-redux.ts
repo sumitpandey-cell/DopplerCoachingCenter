@@ -10,6 +10,8 @@ import {
   fetchAnnouncements,
   fetchAnalytics,
   fetchDashboardStats,
+  fetchEnquiries,
+  fetchFaculty,
   clearStudents,
   clearSubjects,
   clearFees,
@@ -18,6 +20,8 @@ import {
   clearAnnouncements,
   clearAnalytics,
   clearDashboard,
+  clearEnquiries,
+  clearFaculty,
 } from '@/app/store';
 
 // Use throughout your app instead of plain `useDispatch` and `useSelector`
@@ -118,6 +122,34 @@ export const useAnalytics = () => {
   
   return {
     ...analytics,
+    refetch,
+    clear,
+  };
+};
+
+export const useEnquiries = () => {
+  const dispatch = useAppDispatch();
+  const enquiries = useAppSelector((state) => state.enquiries);
+  
+  const refetch = useCallback(() => dispatch(fetchEnquiries()), [dispatch]);
+  const clear = useCallback(() => dispatch(clearEnquiries()), [dispatch]);
+  
+  return {
+    ...enquiries,
+    refetch,
+    clear,
+  };
+};
+
+export const useFaculty = () => {
+  const dispatch = useAppDispatch();
+  const faculty = useAppSelector((state) => state.faculty);
+
+  const refetch = useCallback(() => dispatch(fetchFaculty()), [dispatch]);
+  const clear = useCallback(() => dispatch(clearFaculty()), [dispatch]);
+
+  return {
+    ...faculty,
     refetch,
     clear,
   };

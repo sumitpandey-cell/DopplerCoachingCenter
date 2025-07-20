@@ -61,15 +61,24 @@ export default function AdminDashboard() {
     setLoading(false);
   }, [router]);
 
-  // Fetch data when component mounts
+  // Fetch data when component mounts only if not already loaded
   useEffect(() => {
     if (!loading) {
-      dashboard.refetch();
-      students.refetch();
-      subjects.refetch();
-      announcements.refetch();
+      // Only fetch if data is not already loaded
+      if (dashboard.status === 'idle') {
+        dashboard.refetch();
+      }
+      if (students.status === 'idle') {
+        students.refetch();
+      }
+      if (subjects.status === 'idle') {
+        subjects.refetch();
+      }
+      if (announcements.status === 'idle') {
+        announcements.refetch();
+      }
     }
-  }, [loading]);
+  }, [loading, dashboard.status, students.status, subjects.status, announcements.status]);
 
   if (loading) {
     // Only show a minimal spinner while checking auth

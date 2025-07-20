@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { getDocs, collection } from 'firebase/firestore';
 import { db } from '@/firebase/config';
-import { addStudent, updateStudent, deleteStudent, restoreStudent } from '@/firebase/firestore';
+import { addStudent, updateStudent, deleteStudent, restoreStudent, activateStudent } from '@/firebase/firestore';
 import { getSubjects, Subject } from '@/firebase/firestore';
 import { enrollStudentInSubjects } from '@/firebase/subjects';
 import { useStudents, useSubjects } from '@/hooks/use-redux';
@@ -67,6 +67,7 @@ export default function AdminStudents() {
   const [editLoading, setEditLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [restoreLoading, setRestoreLoading] = useState(false);
+  const [activateLoading, setActivateLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 20;
   const totalPages = Math.ceil(filteredStudents.length / PAGE_SIZE);
@@ -275,6 +276,39 @@ export default function AdminStudents() {
       console.error('Error restoring student:', error);
     } finally {
       setRestoreLoading(false);
+    }
+  };
+
+  const handleActivateStudent = async (studentId: string) => {
+    setActivateLoading(true);
+    try {
+      await activateStudent(studentId);
+      // Refresh students data
+      students.refetch();
+      // Also refresh inactive students
+      const snap = await getDocs(collection(db, 'studentAccounts'));
+      const inactiveArray = snap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.fullName || data.name || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          studentId: data.studentId || '',
+          course: data.course || '',
+          batch: data.batch || '',
+          joinDate: data.createdAt && typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate() : data.createdAt || new Date(),
+          status: data.status || 'active',
+          totalTests: data.totalTests || 0,
+          averageScore: data.averageScore || 0,
+          subjects: Array.isArray(data.subjects) ? data.subjects : [],
+        } as Student;
+      }).filter((s: any) => s.status === 'inactive');
+      setInactiveStudents(inactiveArray);
+    } catch (error) {
+      console.error('Error activating student:', error);
+    } finally {
+      setActivateLoading(false);
     }
   };
 
@@ -538,6 +572,26 @@ export default function AdminStudents() {
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
+                        {student.status === 'inactive' && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleActivateStudent(student.studentId)}
+                                  disabled={activateLoading}
+                                  className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                                >
+                                  <Users className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Activate Student</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                       </div>
                     </div>
                   </div>

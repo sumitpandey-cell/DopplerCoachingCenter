@@ -468,6 +468,15 @@ export const restoreStudent = async (studentId: string) => {
   await updateDoc(docRef, { isActive: true, updatedAt: Timestamp.now() });
 };
 
+export const activateStudent = async (studentId: string) => {
+  const docRef = doc(db, 'studentAccounts', studentId);
+  await updateDoc(docRef, { 
+    isActive: true, 
+    status: 'active', 
+    updatedAt: Timestamp.now() 
+  });
+};
+
 // Subject Management
 export interface Subject {
   id?: string;

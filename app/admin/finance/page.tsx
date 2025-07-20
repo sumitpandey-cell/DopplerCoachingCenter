@@ -731,7 +731,10 @@ export default function AdminFinance() {
                                 <td className="px-2 py-1 border">{p.studentName}</td>
                                 <td className="px-2 py-1 border">{p.studentId}</td>
                                 <td className="px-2 py-1 border">₹{p.amount.toLocaleString()}</td>
-                                <td className="px-2 py-1 border">{format(p.paymentDate, 'MMM dd, yyyy')}</td>
+                                <td className="px-2 py-1 border">{format(
+                                  p.paymentDate?.toDate ? p.paymentDate.toDate() : new Date(p.paymentDate),
+                                  'MMM dd, yyyy'
+                                )}</td>
                                 <td className="px-2 py-1 border">{p.paymentMethod}</td>
                                 <td className="px-2 py-1 border">{p.description}</td>
                               </tr>
@@ -846,11 +849,16 @@ export default function AdminFinance() {
                             <td className="px-2 py-1 border">{payment.studentName}</td>
                             <td className="px-2 py-1 border">{payment.studentId}</td>
                             <td className="px-2 py-1 border">₹{payment.amount.toLocaleString()}</td>
-                            <td className="px-2 py-1 border">{format(payment.dueDate, 'MMM dd, yyyy')}</td>
-                            <td className="px-2 py-1 border">{getStatusBadge(payment.status)}</td>
+                            <td className="px-2 py-1 border">{format(
+                              payment.dueDate?.toDate ? payment.dueDate.toDate() : new Date(payment.dueDate),
+                              'MMM dd, yyyy'
+                            )}</td>
                             <td className="px-2 py-1 border">{payment.description}</td>
                             <td className="px-2 py-1 border">{payment.course || ''}</td>
-                            <td className="px-2 py-1 border">{format(payment.paymentDate, 'MMM dd, yyyy')}</td>
+                            <td className="px-2 py-1 border">{format(
+                              payment.paymentDate?.toDate ? payment.paymentDate.toDate() : new Date(payment.paymentDate),
+                              'MMM dd, yyyy'
+                            )}</td>
                             <td className="px-2 py-1 border">{getPaymentMethodBadge(payment.paymentMethod)}</td>
                           </tr>
                         ))}

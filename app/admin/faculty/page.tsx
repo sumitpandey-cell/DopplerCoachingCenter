@@ -9,76 +9,39 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label';
 import { UserCheck, Search, Plus, Edit, Trash2, Mail, Phone, Calendar, BookOpen, Users } from 'lucide-react';
 import { format } from 'date-fns';
+import { useFaculty, useAppDispatch } from '@/hooks/use-redux';
+import { addFaculty, updateFaculty, deleteFaculty } from '@/app/store';
 
 interface Faculty {
   id: string;
-  name: string;
+  fullName: string;
   email: string;
   phone: string;
   facultyId: string;
   subjects: string[];
-  experience: number;
+  experience?: number;
   qualification: string;
-  joinDate: Date;
-  status: 'active' | 'inactive' | 'on-leave';
-  studentsCount: number;
-  rating: number;
+  createdAt: any; // Firestore Timestamp
+  status?: 'active' | 'inactive' | 'on-leave';
+  studentsCount?: number;
+  rating?: number;
+  isActive?: boolean;
+  hasSignedUp?: boolean;
+  signedUpAt?: any; // Firestore Timestamp
+  role?: string;
 }
 
-export default function AdminFaculty() {
-  const [faculty, setFaculty] = useState<Faculty[]>([
-    {
-      id: '1',
-      name: 'Dr. Rajesh Kumar',
-      email: 'rajesh.kumar@dopplercoaching.com',
-      phone: '+91 98765 43210',
-      facultyId: 'FAC001',
-      subjects: ['Physics', 'Mathematics'],
-      experience: 15,
-      qualification: 'Ph.D. in Physics',
-      joinDate: new Date(2020, 0, 15),
-      status: 'active',
-      studentsCount: 45,
-      rating: 4.8,
-    },
-    {
-      id: '2',
-      name: 'Prof. Priya Sharma',
-      email: 'priya.sharma@dopplercoaching.com',
-      phone: '+91 98765 43211',
-      facultyId: 'FAC002',
-      subjects: ['Chemistry', 'Biology'],
-      experience: 12,
-      qualification: 'M.Sc. Chemistry',
-      joinDate: new Date(2021, 2, 10),
-      status: 'active',
-      studentsCount: 38,
-      rating: 4.9,
-    },
-    {
-      id: '3',
-      name: 'Mr. Amit Verma',
-      email: 'amit.verma@dopplercoaching.com',
-      phone: '+91 98765 43212',
-      facultyId: 'FAC003',
-      subjects: ['Mathematics'],
-      experience: 8,
-      qualification: 'M.Tech. Mathematics',
-      joinDate: new Date(2022, 5, 20),
-      status: 'active',
-      studentsCount: 32,
-      rating: 4.7,
-    },
-  ]);
+export default function AdminFacultyPage() {
+  const faculty = useFaculty();
+  const dispatch = useAppDispatch();
 
-  const [filteredFaculty, setFilteredFaculty] = useState<Faculty[]>(faculty);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingFaculty, setEditingFaculty] = useState<Faculty | null>(null);
 
   const [newFaculty, setNewFaculty] = useState({
-    name: '',
+    fullName: '',
     email: '',
     phone: '',
     facultyId: '',
@@ -89,36 +52,32 @@ export default function AdminFaculty() {
   });
 
   React.useEffect(() => {
-    let filtered = faculty;
-
-    if (searchTerm) {
-      filtered = filtered.filter(f =>
-        f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        f.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        f.facultyId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        f.subjects.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+    if (faculty.status === 'idle') {
+      faculty.refetch();
     }
+  }, [faculty.status, faculty.refetch]);
 
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(f => f.status === statusFilter);
-    }
+  if (faculty.status === 'loading') {
+    return <div className="p-8 text-center">Loading faculty...</div>;
+  }
+  if (faculty.status === 'failed') {
+    return <div className="p-8 text-center text-red-600">Failed to load faculty: {faculty.error}</div>;
+  }
 
-    setFilteredFaculty(filtered);
-  }, [faculty, searchTerm, statusFilter]);
-
-  const handleAddFaculty = () => {
+  const handleAddFaculty = async () => {
     const facultyMember: Faculty = {
       id: `FAC${Date.now()}`,
       ...newFaculty,
-      joinDate: new Date(),
+      createdAt: new Date(),
       studentsCount: 0,
       rating: 0,
+      isActive: true,
+      hasSignedUp: true,
+      role: 'faculty',
     };
-
-    setFaculty(prev => [...prev, facultyMember]);
+    await dispatch(addFaculty(facultyMember));
     setNewFaculty({
-      name: '',
+      fullName: '',
       email: '',
       phone: '',
       facultyId: '',
@@ -134,18 +93,16 @@ export default function AdminFaculty() {
     setEditingFaculty(facultyMember);
   };
 
-  const handleUpdateFaculty = () => {
+  const handleUpdateFaculty = async () => {
     if (!editingFaculty) return;
-
-    setFaculty(prev =>
-      prev.map(f => f.id === editingFaculty.id ? editingFaculty : f)
-    );
+    const { id, ...updates } = editingFaculty;
+    await dispatch(updateFaculty({ id, updates }));
     setEditingFaculty(null);
   };
 
-  const handleDeleteFaculty = (facultyId: string) => {
+  const handleDeleteFaculty = async (facultyId: string) => {
     if (confirm('Are you sure you want to delete this faculty member?')) {
-      setFaculty(prev => prev.filter(f => f.id !== facultyId));
+      await dispatch(deleteFaculty(facultyId));
     }
   };
 
@@ -190,8 +147,8 @@ export default function AdminFaculty() {
                     <Label htmlFor="name">Full Name</Label>
                     <Input
                       id="name"
-                      value={newFaculty.name}
-                      onChange={(e) => setNewFaculty(prev => ({ ...prev, name: e.target.value }))}
+                      value={newFaculty.fullName}
+                      onChange={(e) => setNewFaculty(prev => ({ ...prev, fullName: e.target.value }))}
                       placeholder="Enter faculty name"
                     />
                   </div>
@@ -303,7 +260,7 @@ export default function AdminFaculty() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Faculty</p>
-                <p className="text-2xl font-bold">{faculty.length}</p>
+                <p className="text-2xl font-bold">{faculty.data?.length || 0}</p>
               </div>
               <UserCheck className="h-8 w-8 text-blue-600" />
             </div>
@@ -314,7 +271,7 @@ export default function AdminFaculty() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Active</p>
-                <p className="text-2xl font-bold">{faculty.filter(f => f.status === 'active').length}</p>
+                <p className="text-2xl font-bold">{faculty.data?.filter(f => f.status === 'active').length || 0}</p>
               </div>
               <UserCheck className="h-8 w-8 text-green-600" />
             </div>
@@ -325,7 +282,7 @@ export default function AdminFaculty() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Students</p>
-                <p className="text-2xl font-bold">{faculty.reduce((sum, f) => sum + f.studentsCount, 0)}</p>
+                <p className="text-2xl font-bold">{faculty.data?.reduce((sum, f) => sum + f.studentsCount, 0) || 0}</p>
               </div>
               <Users className="h-8 w-8 text-purple-600" />
             </div>
@@ -337,8 +294,8 @@ export default function AdminFaculty() {
               <div>
                 <p className="text-sm text-gray-600">Avg Rating</p>
                 <p className="text-2xl font-bold">
-                  {faculty.length > 0 
-                    ? (faculty.reduce((sum, f) => sum + f.rating, 0) / faculty.length).toFixed(1)
+                  {faculty.data?.length > 0 
+                    ? (faculty.data.reduce((sum, f) => sum + f.rating, 0) / faculty.data.length).toFixed(1)
                     : '0.0'}
                 </p>
               </div>
@@ -349,14 +306,14 @@ export default function AdminFaculty() {
       </div>
 
       {/* Faculty Grid */}
-      {filteredFaculty.length > 0 ? (
+      {faculty.data?.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredFaculty.map((facultyMember) => (
+          {faculty.data.map((facultyMember) => (
             <Card key={facultyMember.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div>
-                    <CardTitle className="text-lg">{facultyMember.name}</CardTitle>
+                    <CardTitle className="text-lg">{facultyMember.fullName}</CardTitle>
                     <CardDescription>ID: {facultyMember.facultyId}</CardDescription>
                   </div>
                   {getStatusBadge(facultyMember.status)}
@@ -378,7 +335,28 @@ export default function AdminFaculty() {
                   </div>
                   <div className="flex items-center text-sm">
                     <Calendar className="h-4 w-4 mr-2 text-gray-500" />
-                    <span>Joined: {format(facultyMember.joinDate, 'MMM dd, yyyy')}</span>
+                    <span>Joined: {
+                      (() => {
+                        try {
+                          let date;
+                          if (facultyMember.createdAt?.toDate) {
+                            date = facultyMember.createdAt.toDate();
+                          } else if (facultyMember.createdAt) {
+                            date = new Date(facultyMember.createdAt);
+                          } else {
+                            return 'Not specified';
+                          }
+                          
+                          if (isNaN(date.getTime())) {
+                            return 'Invalid date';
+                          }
+                          
+                          return format(date, 'MMM dd, yyyy');
+                        } catch (error) {
+                          return 'Invalid date';
+                        }
+                      })()
+                    }</span>
                   </div>
                   
                   <div className="pt-2">
@@ -452,8 +430,8 @@ export default function AdminFaculty() {
                   <Label htmlFor="edit-name">Full Name</Label>
                   <Input
                     id="edit-name"
-                    value={editingFaculty.name}
-                    onChange={(e) => setEditingFaculty(prev => prev ? { ...prev, name: e.target.value } : null)}
+                    value={editingFaculty.fullName}
+                    onChange={(e) => setEditingFaculty(prev => prev ? { ...prev, fullName: e.target.value } : null)}
                   />
                 </div>
                 <div>

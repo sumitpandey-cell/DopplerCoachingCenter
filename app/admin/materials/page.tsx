@@ -21,12 +21,21 @@ import { format } from 'date-fns';
 import { Loader, Skeleton } from '@/components/ui/loader';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState, AppDispatch } from '../../store';
-import { fetchMaterials } from '../../store';
+import { fetchMaterials, fetchSubjects } from '../../store';
+
+function parseFirestoreDate(val: any): Date | null {
+  if (!val) return null;
+  if (typeof val.toDate === 'function') return val.toDate();
+  if (val instanceof Date) return val;
+  // Try ISO string
+  const iso = new Date(val);
+  if (!isNaN(iso.getTime())) return iso;
+  // Try to parse Firestore string format (fallback: show 'Invalid date')
+  return null;
+}
 
 export default function AdminMaterials() {
   const [filteredMaterials, setFilteredMaterials] = useState<StudyMaterial[]>([]);
-  const [subjects, setSubjects] = useState<{id: string; name: string}[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -44,13 +53,21 @@ export default function AdminMaterials() {
 
   const dispatch = useDispatch<AppDispatch>();
   const materialsState = useSelector((state: RootState) => state.materials);
+  const subjectsState = useSelector((state: RootState) => state.subjects);
   const { data: materials, status: materialsStatus, error: materialsError } = materialsState;
+  const { data: subjects, status: subjectsStatus } = subjectsState;
 
   useEffect(() => {
     if (materialsStatus === 'idle') {
       dispatch(fetchMaterials());
     }
   }, [dispatch, materialsStatus]);
+
+  useEffect(() => {
+    if (subjectsStatus === 'idle') {
+      dispatch(fetchSubjects());
+    }
+  }, [dispatch, subjectsStatus]);
 
   useEffect(() => {
     let filtered = materials;
@@ -85,9 +102,7 @@ export default function AdminMaterials() {
       const materialId = await addStudyMaterial(materialData);
       
       // Refresh materials list
-      const updatedMaterials = await getStudyMaterials();
-      setMaterials(updatedMaterials);
-      setFilteredMaterials(updatedMaterials);
+      dispatch(fetchMaterials());
       
       setNewMaterial({
         title: '',
@@ -118,9 +133,7 @@ export default function AdminMaterials() {
       await updateStudyMaterial(editingMaterial.id!, editingMaterial);
       
       // Refresh materials list
-      const updatedMaterials = await getStudyMaterials();
-      setMaterials(updatedMaterials);
-      setFilteredMaterials(updatedMaterials);
+      dispatch(fetchMaterials());
       
       setEditingMaterial(null);
     } catch (error) {
@@ -139,9 +152,7 @@ export default function AdminMaterials() {
         await deleteStudyMaterial(materialId);
         
         // Refresh materials list
-        const updatedMaterials = await getStudyMaterials();
-        setMaterials(updatedMaterials);
-        setFilteredMaterials(updatedMaterials);
+        dispatch(fetchMaterials());
         
       } catch (error) {
         console.error('Error deleting material:', error);
@@ -173,7 +184,7 @@ export default function AdminMaterials() {
     );
   }
 
-  if (loading) {
+  if (materialsStatus === 'loading') {
     // Only show a minimal spinner while checking auth (if needed)
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -186,7 +197,7 @@ export default function AdminMaterials() {
     <div className="flex min-h-screen bg-gray-50">
       <div className="flex-1 p-8">
         <h1 className="text-3xl font-bold mb-6">Study Materials</h1>
-        {loading ? <MaterialsSkeleton /> : (
+        {materialsStatus === 'loading' ? <MaterialsSkeleton /> : (
           <>
             <div className="mb-8">
               <div className="flex justify-between items-center">
@@ -224,7 +235,7 @@ export default function AdminMaterials() {
                           onChange={(e) => setNewMaterial(prev => ({ ...prev, subject: e.target.value }))}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md"
                         >
-                          <option value="">Select Subject</option>
+                          <option value="">{subjectsStatus === 'loading' ? 'Loading subjects...' : 'Select Subject'}</option>
                           {subjects.map(subject => (
                             <option key={subject.id} value={subject.name}>{subject.name}</option>
                           ))}
@@ -284,9 +295,13 @@ export default function AdminMaterials() {
                 className="px-3 py-2 border border-gray-300 rounded-md"
               >
                 <option value="all">All Subjects</option>
-                {subjects.map(subject => (
-                  <option key={subject.id} value={subject.name}>{subject.name}</option>
-                ))}
+                {subjectsStatus === 'loading' ? (
+                  <option disabled>Loading subjects...</option>
+                ) : (
+                  subjects.map(subject => (
+                    <option key={subject.id} value={subject.name}>{subject.name}</option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -322,8 +337,8 @@ export default function AdminMaterials() {
                       <p className="text-2xl font-bold">
                         {materials.filter(m => {
                           const now = new Date();
-                          const materialDate = new Date(m.uploadedAt);
-                          return materialDate.getMonth() === now.getMonth() && 
+                          const materialDate = parseFirestoreDate(m.uploadedAt);
+                          return materialDate && materialDate.getMonth() === now.getMonth() && 
                                  materialDate.getFullYear() === now.getFullYear();
                         }).length}
                       </p>
@@ -366,7 +381,10 @@ export default function AdminMaterials() {
                         </div>
                         <div className="flex items-center text-sm text-gray-500">
                           <Calendar className="h-4 w-4 mr-2" />
-                          {format(material.uploadedAt, 'MMM dd, yyyy')}
+                          {(() => {
+                            const date = parseFirestoreDate(material.uploadedAt);
+                            return date ? format(date, 'MMM dd, yyyy') : 'Invalid date';
+                          })()}
                         </div>
                         <div className="text-sm text-gray-600">
                           File: {material.fileName}

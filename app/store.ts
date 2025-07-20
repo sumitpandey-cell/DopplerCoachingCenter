@@ -206,6 +206,52 @@ const materialsSlice = createSlice({
   },
 });
 
+// Enquiries Slice
+export const fetchEnquiries = createAsyncThunk('enquiries/fetchEnquiries', async () => {
+  const res = await fetch('/api/enquiries');
+  if (!res.ok) throw new Error('Failed to fetch enquiries');
+  return await res.json() as any[];
+});
+
+const enquiriesSlice = createSlice({
+  name: 'enquiries',
+  initialState: {
+    data: [] as any[],
+    status: 'idle' as 'idle' | 'loading' | 'succeeded' | 'failed',
+    error: null as string | null,
+  },
+  reducers: {
+    clearEnquiries: (state) => {
+      state.data = [];
+      state.status = 'idle';
+      state.error = null;
+    },
+    updateEnquiryStatus: (state, action) => {
+      const { id, status, studentId } = action.payload;
+      const enquiry = state.data.find(e => e.id === id);
+      if (enquiry) {
+        enquiry.status = status;
+        if (studentId) enquiry.studentId = studentId;
+      }
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchEnquiries.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(fetchEnquiries.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.data = action.payload;
+      })
+      .addCase(fetchEnquiries.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.error.message || 'Failed to fetch enquiries';
+      });
+  },
+});
+
 // Tests Slice
 export const fetchTests = createAsyncThunk('tests/fetchTests', async () => {
   const res = await fetch('/api/all-tests');
@@ -251,6 +297,14 @@ export const fetchAnnouncements = createAsyncThunk('announcements/fetchAnnouncem
   return await res.json() as Announcement[];
 });
 
+export const deleteAnnouncement = createAsyncThunk('announcements/deleteAnnouncement', async (id: string) => {
+  const res = await fetch(`/api/announcements?id=${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete announcement');
+  return id;
+});
+
 const announcementsSlice = createSlice({
   name: 'announcements',
   initialState: {
@@ -278,6 +332,9 @@ const announcementsSlice = createSlice({
       .addCase(fetchAnnouncements.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.error.message || 'Failed to fetch announcements';
+      })
+      .addCase(deleteAnnouncement.fulfilled, (state, action) => {
+        state.data = state.data.filter(a => a.id !== action.payload);
       });
   },
 });
@@ -358,16 +415,100 @@ const dashboardSlice = createSlice({
   },
 });
 
+// Faculty Slice
+export const fetchFaculty = createAsyncThunk('faculty/fetchFaculty', async () => {
+  const res = await fetch('/api/all-faculty');
+  if (!res.ok) throw new Error('Failed to fetch faculty');
+  return await res.json() as any[];
+});
+
+export const addFaculty = createAsyncThunk('faculty/addFaculty', async (faculty: any) => {
+  const res = await fetch('/api/add-faculty', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ faculty }),
+  });
+  if (!res.ok) throw new Error('Failed to add faculty');
+  const { id } = await res.json();
+  return { ...faculty, id };
+});
+
+export const updateFaculty = createAsyncThunk('faculty/updateFaculty', async ({ id, updates }: { id: string, updates: any }) => {
+  const res = await fetch('/api/update-faculty', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, updates }),
+  });
+  if (!res.ok) throw new Error('Failed to update faculty');
+  return { id, updates };
+});
+
+export const deleteFaculty = createAsyncThunk('faculty/deleteFaculty', async (id: string) => {
+  const res = await fetch('/api/delete-faculty', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+  if (!res.ok) throw new Error('Failed to delete faculty');
+  return id;
+});
+
+const facultySlice = createSlice({
+  name: 'faculty',
+  initialState: {
+    data: [] as any[],
+    status: 'idle' as 'idle' | 'loading' | 'succeeded' | 'failed',
+    error: null as string | null,
+  },
+  reducers: {
+    clearFaculty: (state) => {
+      state.data = [];
+      state.status = 'idle';
+      state.error = null;
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchFaculty.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(fetchFaculty.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.data = action.payload;
+      })
+      .addCase(fetchFaculty.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.error.message || 'Failed to fetch faculty';
+      })
+      .addCase(addFaculty.fulfilled, (state, action) => {
+        state.data.push(action.payload);
+      })
+      .addCase(updateFaculty.fulfilled, (state, action) => {
+        const { id, updates } = action.payload;
+        const idx = state.data.findIndex(f => f.id === id);
+        if (idx !== -1) {
+          state.data[idx] = { ...state.data[idx], ...updates };
+        }
+      })
+      .addCase(deleteFaculty.fulfilled, (state, action) => {
+        state.data = state.data.filter(f => f.id !== action.payload);
+      });
+  },
+});
+
 const store = configureStore({
   reducer: {
     students: studentsSlice.reducer,
     subjects: subjectsSlice.reducer,
     fees: feesSlice.reducer,
     materials: materialsSlice.reducer,
+    enquiries: enquiriesSlice.reducer,
     tests: testsSlice.reducer,
     announcements: announcementsSlice.reducer,
     analytics: analyticsSlice.reducer,
     dashboard: dashboardSlice.reducer,
+    faculty: facultySlice.reducer,
   },
 });
 
@@ -380,19 +521,25 @@ export const {
   clearSubjects,
   clearFees,
   clearMaterials,
+  clearEnquiries,
+  updateEnquiryStatus,
   clearTests,
   clearAnnouncements,
   clearAnalytics,
   clearDashboard,
+  clearFaculty,
 } = {
   clearStudents: studentsSlice.actions.clearStudents,
   clearSubjects: subjectsSlice.actions.clearSubjects,
   clearFees: feesSlice.actions.clearFees,
   clearMaterials: materialsSlice.actions.clearMaterials,
+  clearEnquiries: enquiriesSlice.actions.clearEnquiries,
+  updateEnquiryStatus: enquiriesSlice.actions.updateEnquiryStatus,
   clearTests: testsSlice.actions.clearTests,
   clearAnnouncements: announcementsSlice.actions.clearAnnouncements,
   clearAnalytics: analyticsSlice.actions.clearAnalytics,
   clearDashboard: dashboardSlice.actions.clearDashboard,
+  clearFaculty: facultySlice.actions.clearFaculty,
 };
 
 export default store; 

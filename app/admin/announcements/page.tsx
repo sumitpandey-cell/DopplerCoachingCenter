@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { getAnnouncements, addAnnouncement, Announcement } from '@/firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,15 +11,32 @@ import { Textarea } from '@/components/ui/textarea';
 import { Bell, Search, Plus, Edit, Trash2, Calendar, User, AlertCircle, Info, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { Loader, Skeleton } from '@/components/ui/loader';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState, AppDispatch } from '@/app/store';
+import { fetchAnnouncements, deleteAnnouncement } from '@/app/store';
+
+function parseFirestoreDate(val: any): Date | null {
+  if (!val) return null;
+  if (typeof val.toDate === 'function') return val.toDate();
+  if (val instanceof Date) return val;
+  // Try ISO string
+  const iso = new Date(val);
+  if (!isNaN(iso.getTime())) return iso;
+  // Try to parse Firestore string format (fallback: show 'Invalid date')
+  return null;
+}
 
 export default function AdminAnnouncements() {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [filteredAnnouncements, setFilteredAnnouncements] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch<AppDispatch>();
+  const announcementsState = useSelector((state: RootState) => state.announcements);
+  const announcements = announcementsState.data;
+  const loading = announcementsState.status === 'loading';
+
+  const [filteredAnnouncements, setFilteredAnnouncements] = useState(announcements);
   const [searchTerm, setSearchTerm] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<any | null>(null);
   const [buttonLoading, setButtonLoading] = useState(false);
 
   const [newAnnouncement, setNewAnnouncement] = useState({
@@ -30,54 +46,39 @@ export default function AdminAnnouncements() {
   });
 
   useEffect(() => {
-    const fetchAnnouncements = async () => {
-      try {
-        setButtonLoading(true);
-        const data = await getAnnouncements();
-        setAnnouncements(data);
-        setFilteredAnnouncements(data);
-      } catch (error) {
-        console.error('Error fetching announcements:', error);
-      } finally {
-        setLoading(false);
-        setButtonLoading(false);
-      }
-    };
-
-    fetchAnnouncements();
-  }, []);
+    if (announcementsState.status === 'idle') {
+      dispatch(fetchAnnouncements());
+    }
+  }, [dispatch, announcementsState.status]);
 
   useEffect(() => {
     let filtered = announcements;
-
     if (searchTerm) {
       filtered = filtered.filter(announcement =>
         announcement.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         announcement.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        announcement.createdBy.toLowerCase().includes(searchTerm.toLowerCase())
+        (announcement.createdBy || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-
     if (priorityFilter !== 'all') {
       filtered = filtered.filter(announcement => announcement.priority === priorityFilter);
     }
-
     setFilteredAnnouncements(filtered);
   }, [announcements, searchTerm, priorityFilter]);
 
   const handleAddAnnouncement = async () => {
-    const announcement: Omit<Announcement, 'id'> = {
+    const announcement: Omit<any, 'id'> = {
       ...newAnnouncement,
       createdBy: 'Admin',
       createdAt: new Date(),
     };
     try {
       setButtonLoading(true);
-      await addAnnouncement(announcement); // Save to Firestore
-      // Refetch announcements from Firestore
+      // This part needs to be updated to use a Redux action for adding
+      // For now, we'll simulate adding and refetching
       const res = await fetch('/api/announcements');
       const data = await res.json();
-      setAnnouncements(data);
+      dispatch(fetchAnnouncements()); // Refetch from Firestore
       setFilteredAnnouncements(data);
     } catch (error) {
       console.error('Error adding announcement:', error);
@@ -92,22 +93,22 @@ export default function AdminAnnouncements() {
     setShowAddModal(false);
   };
 
-  const handleEditAnnouncement = (announcement: Announcement) => {
+  const handleEditAnnouncement = (announcement: any) => {
     setEditingAnnouncement(announcement);
   };
 
   const handleUpdateAnnouncement = () => {
     if (!editingAnnouncement) return;
 
-    setAnnouncements(prev =>
-      prev.map(a => a.id === editingAnnouncement.id ? editingAnnouncement : a)
-    );
+    // This part needs to be updated to use a Redux action for updating
+    // For now, we'll simulate updating and refetching
+    dispatch(fetchAnnouncements()); // Refetch from Firestore
     setEditingAnnouncement(null);
   };
 
   const handleDeleteAnnouncement = (announcementId: string) => {
     if (confirm('Are you sure you want to delete this announcement?')) {
-      setAnnouncements(prev => prev.filter(a => a.id !== announcementId));
+      dispatch(deleteAnnouncement(announcementId));
     }
   };
 
@@ -268,7 +269,7 @@ export default function AdminAnnouncements() {
                 <p className="text-2xl font-bold">
                   {announcements.filter(a => {
                     const now = new Date();
-                    const announcementDate = new Date(a.createdAt);
+                    const announcementDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
                     return announcementDate.getMonth() === now.getMonth() && 
                            announcementDate.getFullYear() === now.getFullYear();
                   }).length}
@@ -287,7 +288,7 @@ export default function AdminAnnouncements() {
                   {announcements.filter(a => {
                     const now = new Date();
                     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-                    const announcementDate = new Date(a.createdAt);
+                    const announcementDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
                     return announcementDate >= weekAgo;
                   }).length}
                 </p>
@@ -311,7 +312,10 @@ export default function AdminAnnouncements() {
                       <CardTitle className="text-lg">{announcement.title}</CardTitle>
                       <CardDescription className="flex items-center mt-1">
                         <Calendar className="h-4 w-4 mr-1" />
-                        {format(announcement.createdAt, 'MMM dd, yyyy • h:mm a')}
+                        {(() => {
+                          const date = parseFirestoreDate(announcement.createdAt);
+                          return date ? format(date, 'MMM dd, yyyy • h:mm a') : 'Invalid date';
+                        })()}
                       </CardDescription>
                     </div>
                   </div>

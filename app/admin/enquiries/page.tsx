@@ -13,11 +13,10 @@ import { format } from 'date-fns';
 import { sendStudentIdEmail } from '@/lib/email-service';
 import { Loader, Skeleton } from '@/components/ui/loader';
 import { enrollStudentInSubjects } from '@/firebase/subjects';
+import { useEnquiries } from '@/hooks/use-redux';
 
 export default function AdminEnquiries() {
-  const [enquiries, setEnquiries] = useState<StudentEnquiry[]>([]);
   const [filteredEnquiries, setFilteredEnquiries] = useState<StudentEnquiry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [generatingId, setGeneratingId] = useState<string | null>(null);
@@ -26,27 +25,17 @@ export default function AdminEnquiries() {
   const [generatedStudentEmail, setGeneratedStudentEmail] = useState('');
   const [buttonLoading, setButtonLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchEnquiries = async () => {
-      try {
-        setButtonLoading(true);
-        const res = await fetch('/api/enquiries');
-        const data = await res.json();
-        setEnquiries(data);
-        setFilteredEnquiries(data);
-      } catch (error) {
-        console.error('Error fetching enquiries:', error);
-      } finally {
-        setLoading(false);
-        setButtonLoading(false);
-      }
-    };
-
-    fetchEnquiries();
-  }, []);
+  // Redux hooks
+  const enquiries = useEnquiries();
 
   useEffect(() => {
-    let filtered = enquiries;
+    if (enquiries.status === 'idle') {
+      enquiries.refetch();
+    }
+  }, [enquiries.status, enquiries.refetch]);
+
+  useEffect(() => {
+    let filtered = enquiries.data || [];
 
     if (searchTerm) {
       filtered = filtered.filter(enquiry =>
@@ -61,7 +50,7 @@ export default function AdminEnquiries() {
     }
 
     setFilteredEnquiries(filtered);
-  }, [enquiries, searchTerm, statusFilter]);
+  }, [enquiries.data, searchTerm, statusFilter]);
 
   const generateStudentId = () => {
     const year = new Date().getFullYear().toString().slice(-2);
@@ -118,13 +107,7 @@ export default function AdminEnquiries() {
       }
 
       // Update local state
-      setEnquiries(prev =>
-        prev.map(e =>
-          e.id === enquiry.id
-            ? { ...e, status: 'id_generated', studentId }
-            : e
-        )
-      );
+      enquiries.refetch(); // Refetch to update Redux state
 
       setGeneratedStudentId(studentId);
       setGeneratedStudentEmail(enquiry.email);
@@ -165,7 +148,7 @@ export default function AdminEnquiries() {
     navigator.clipboard.writeText(text);
   };
 
-  if (loading) {
+  if (enquiries.status === 'loading') {
     return (
       <div className="p-8">
         <div className="space-y-4">
@@ -180,11 +163,49 @@ export default function AdminEnquiries() {
     );
   }
 
+  if (enquiries.status === 'failed') {
+    return (
+      <div className="p-8">
+        <Alert variant="destructive">
+          <AlertDescription>
+            Failed to load enquiries: {enquiries.error}
+            <Button 
+              onClick={enquiries.refetch} 
+              variant="outline" 
+              size="sm" 
+              className="ml-2"
+            >
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Student Enquiries</h1>
-        <p className="text-gray-600">Manage student enquiries and generate Student IDs</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Student Enquiries</h1>
+            <p className="text-gray-600">Manage student enquiries and generate Student IDs</p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Badge variant={enquiries.status === 'loading' ? 'secondary' : 'default'}>
+              {enquiries.status}
+            </Badge>
+            <Button 
+              onClick={enquiries.refetch}
+              disabled={enquiries.status === 'loading'}
+              size="sm"
+              variant="outline"
+            >
+              <Users className={`h-4 w-4 mr-2 ${enquiries.status === 'loading' ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Filters */}
@@ -218,7 +239,7 @@ export default function AdminEnquiries() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Enquiries</p>
-                <p className="text-2xl font-bold">{enquiries.length}</p>
+                <p className="text-2xl font-bold">{enquiries.data?.length || 0}</p>
               </div>
               <Users className="h-8 w-8 text-blue-600" />
             </div>
@@ -229,7 +250,7 @@ export default function AdminEnquiries() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Pending</p>
-                <p className="text-2xl font-bold">{enquiries.filter(e => e.status === 'pending').length}</p>
+                <p className="text-2xl font-bold">{enquiries.data?.filter(e => e.status === 'pending').length || 0}</p>
               </div>
               <Calendar className="h-8 w-8 text-yellow-600" />
             </div>
@@ -240,7 +261,7 @@ export default function AdminEnquiries() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">IDs Generated</p>
-                <p className="text-2xl font-bold">{enquiries.filter(e => e.status === 'id_generated').length}</p>
+                <p className="text-2xl font-bold">{enquiries.data?.filter(e => e.status === 'id_generated').length || 0}</p>
               </div>
               <UserPlus className="h-8 w-8 text-green-600" />
             </div>
@@ -252,11 +273,12 @@ export default function AdminEnquiries() {
               <div>
                 <p className="text-sm text-gray-600">This Week</p>
                 <p className="text-2xl font-bold">
-                  {enquiries.filter(e => {
+                  {enquiries.data?.filter(e => {
                     const now = new Date();
                     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-                    return new Date(e.submittedAt) >= weekAgo;
-                  }).length}
+                    const submittedDate = e.submittedAt?.toDate ? e.submittedAt.toDate() : new Date(e.submittedAt);
+                    return submittedDate >= weekAgo;
+                  }).length || 0}
                 </p>
               </div>
               <Calendar className="h-8 w-8 text-purple-600" />
@@ -276,7 +298,10 @@ export default function AdminEnquiries() {
                     <CardTitle className="text-lg">{enquiry.fullName}</CardTitle>
                     <CardDescription className="flex items-center mt-1">
                       <Calendar className="h-4 w-4 mr-1" />
-                      {format(enquiry.submittedAt, 'MMM dd, yyyy')}
+                      {format(
+                        enquiry.submittedAt?.toDate ? enquiry.submittedAt.toDate() : new Date(enquiry.submittedAt),
+                        'MMM dd, yyyy'
+                      )}
                     </CardDescription>
                   </div>
                   {getStatusBadge(enquiry.status)}
@@ -293,8 +318,13 @@ export default function AdminEnquiries() {
                     <span>{enquiry.phone}</span>
                   </div>
                   <div className="text-sm">
-                    <p className="font-medium text-gray-700">Course:</p>
-                    <p className="text-gray-600">{enquiry.course}</p>
+                    <p className="font-medium text-gray-700">Subjects:</p>
+                    <p className="text-gray-600">
+                      {enquiry.subjects && enquiry.subjects.length > 0 
+                        ? enquiry.subjects.join(', ') 
+                        : 'No subjects selected'
+                      }
+                    </p>
                   </div>
                   
                   {enquiry.notes && (

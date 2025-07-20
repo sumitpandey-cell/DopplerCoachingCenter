@@ -104,6 +104,11 @@ export const getStudentFees = async (studentId: string) => {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
+export const getAllStudentFees = async () => {
+  const querySnapshot = await getDocs(collection(db, 'studentFees'));
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
 // Enhanced Fee Payment with comprehensive tracking
 export type FeePayment = {
   id: string;
