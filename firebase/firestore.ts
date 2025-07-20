@@ -162,6 +162,19 @@ export const getStudyMaterials = async (): Promise<StudyMaterial[]> => {
   })) as StudyMaterial[];
 };
 
+export const updateStudyMaterial = async (materialId: string, updates: Partial<StudyMaterial>) => {
+  const docRef = doc(db, 'studyMaterials', materialId);
+  await updateDoc(docRef, {
+    ...updates,
+    uploadedAt: updates.uploadedAt ? Timestamp.fromDate(updates.uploadedAt) : undefined
+  });
+};
+
+export const deleteStudyMaterial = async (materialId: string) => {
+  const docRef = doc(db, 'studyMaterials', materialId);
+  await deleteDoc(docRef);
+};
+
 // Test Results
 export const addTestResult = async (result: Omit<TestResult, 'id'>) => {
   const docRef = await addDoc(collection(db, 'testResults'), {

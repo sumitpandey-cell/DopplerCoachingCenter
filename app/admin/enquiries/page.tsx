@@ -30,7 +30,8 @@ export default function AdminEnquiries() {
     const fetchEnquiries = async () => {
       try {
         setButtonLoading(true);
-        const data = await getStudentEnquiries();
+        const res = await fetch('/api/enquiries');
+        const data = await res.json();
         setEnquiries(data);
         setFilteredEnquiries(data);
       } catch (error) {

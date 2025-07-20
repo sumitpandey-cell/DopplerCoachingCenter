@@ -5,12 +5,10 @@ import { useRouter } from 'next/navigation';
 import { isAdminAuthenticated } from '@/firebase/admin-auth';
 import { LoaderOverlay } from '@/components/ui/loader';
 import { Suspense } from 'react';
+import AdminSidebar from '@/components/AdminSidebar';
+import { SubjectsProvider } from '@/contexts/SubjectsContext';
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -20,7 +18,7 @@ export default function AdminLayout({
       return;
     }
     setLoading(false);
-  }, [router]);
+  }, []); // Only run once on mount
 
   if (loading) {
     return (
@@ -31,8 +29,17 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="flex-1 bg-gray-50 dark:bg-gray-950">
-      <Suspense fallback={<LoaderOverlay />}>{children}</Suspense>
-    </div>
+    <SubjectsProvider>
+      <div className="flex min-h-screen">
+        <AdminSidebar />
+        <div className="flex flex-1 min-h-0" style={{height: 'calc(100vh - 64px)'}}>
+          <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-950 h-full relative">
+            <Suspense fallback={<div className='absolute inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70'><LoaderOverlay /></div>}>
+              {children}
+            </Suspense>
+          </div>
+        </div>
+      </div>
+    </SubjectsProvider>
   );
 }

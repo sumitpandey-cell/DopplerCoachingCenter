@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAdminAuthenticated } from '@/firebase/admin-auth';
-import AdminSidebar from '@/components/AdminSidebar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,12 +33,25 @@ import {
     CheckCircle
 } from 'lucide-react';
 
-import { getFeeAnalytics, getFeePayments } from '@/firebase/fees';
+import { useSelector, useDispatch } from 'react-redux';
+import type { RootState, AppDispatch } from '../../store';
+import { fetchFees } from '../../store';
 import { getSubjects } from '@/firebase/subjects';
 import { getStudentByStudentId } from '@/firebase/firestore';
 import { getStudentFees, sendFeeReminders } from '@/firebase/fees';
 import { collection, getDocs, query, where, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+
+// Simple skeleton for analytics/payments
+function FeesSkeleton() {
+  return (
+    <div className="space-y-4">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="h-16 bg-gray-200 rounded animate-pulse" />
+      ))}
+    </div>
+  );
+}
 
 export default function EnhancedFeesPage() {
     const [activeTab, setActiveTab] = useState('overview');
@@ -70,7 +82,10 @@ export default function EnhancedFeesPage() {
 
     const { toast } = useToast();
 
-    // Check admin authentication
+    const dispatch = useDispatch<AppDispatch>();
+    const feesState = useSelector((state: RootState) => state.fees);
+    const { data: fees, status: feesStatus, error: feesError } = feesState;
+
     React.useEffect(() => {
         if (!isAdminAuthenticated()) {
             router.push('/');
@@ -78,26 +93,11 @@ export default function EnhancedFeesPage() {
         }
     }, [router]);
 
-    // Fetch analytics and recent payments
     React.useEffect(() => {
-        async function fetchData() {
-            setLoading(true);
-            try {
-                const [analyticsData, paymentsData] = await Promise.all([
-                    getFeeAnalytics(),
-                    getFeePayments()
-                ]);
-                setAnalytics(analyticsData);
-                setRecentPayments(paymentsData.slice(0, 5));
-                setAllPayments(paymentsData); // Store all payments for the Payments tab
-            } catch (err) {
-                // handle error
-            } finally {
-                setLoading(false);
-            }
+        if (feesStatus === 'idle') {
+            dispatch(fetchFees());
         }
-        fetchData();
-    }, []);
+    }, [dispatch, feesStatus]);
 
     React.useEffect(() => {
         getSubjects(false).then(setSubjects);
@@ -112,22 +112,8 @@ export default function EnhancedFeesPage() {
             const subjectObj = subjects.find(s => s.id === selectedSubject);
             const subjectName = subjectObj?.name;
             // Query for fees with subjectId or subject name
-            const feesByIdQuery = query(
-                collection(db, 'studentFees'),
-                where('subjectId', '==', selectedSubject)
-            );
-            const feesByNameQuery = subjectName
-                ? query(collection(db, 'studentFees'), where('subject', '==', subjectName))
-                : null;
-            const [feesByIdSnap, feesByNameSnap] = await Promise.all([
-                getDocs(feesByIdQuery),
-                feesByNameQuery ? getDocs(feesByNameQuery) : Promise.resolve({ docs: [] })
-            ]);
-            // Merge and deduplicate fees
-            const feesMap = new Map();
-            for (const doc of feesByIdSnap.docs) feesMap.set(doc.id, { id: doc.id, ...doc.data() });
-            for (const doc of (feesByNameSnap?.docs || [])) feesMap.set(doc.id, { id: doc.id, ...doc.data() });
-            const fees = Array.from(feesMap.values());
+            const res = await fetch(`/api/fees-by-subject?subjectId=${selectedSubject}&subjectName=${encodeURIComponent(subjectName || '')}`);
+            const fees = await res.json();
             // For each fee, get student info
             const rows = await Promise.all(fees.map(async (fee: any) => {
                 const student = await getStudentByStudentId(fee.studentId);
@@ -205,15 +191,25 @@ export default function EnhancedFeesPage() {
         }
     };
 
+    if (loading) {
+        // Only show a minimal spinner while checking auth (if needed)
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
+            </div>
+        );
+    }
+
     if (!isAdminAuthenticated()) {
         return null;
     }
 
     return (
         <div className="flex min-h-screen bg-gray-50">
-            <AdminSidebar />
+            {/* Removed AdminSidebar */}
 
             <div className="flex-1 p-8">
+                <h1 className="text-3xl font-bold mb-6">Fees</h1>
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                     <TabsList className="grid w-full grid-cols-4">
                         <TabsTrigger value="overview" className="flex items-center gap-2">
@@ -370,7 +366,7 @@ export default function EnhancedFeesPage() {
                     {/* Payments Tab */}
                     <TabsContent value="payments" className="space-y-6">
                         {loading || !analytics ? (
-                            <div>Loading...</div>
+                            <FeesSkeleton />
                         ) : (
                             <FeeStatistics stats={{
                                 totalRevenue: analytics.totalCollected ?? 0,
@@ -387,7 +383,6 @@ export default function EnhancedFeesPage() {
                         <div className="bg-white rounded-lg shadow p-6">
                             <div className="flex justify-between items-center mb-4">
                                 <h2 className="text-2xl font-semibold text-blue-700">Subject Fee Status</h2>
-                                <Button onClick={() => setShowAddSubjectModal(true)} variant="default">Add Subject</Button>
                             </div>
                             <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>

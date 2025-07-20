@@ -1,3 +1,4 @@
+
 import React from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import Toppers from '@/components/Home/Toppers';
 import Testimonials from '@/components/Home/Testimonials';
 import Gallery from '@/components/Home/Gallery';
 import Hero from '@/components/Home/Hero';
+import Footer from '@/components/Footer';
 
 
 export default function Home() {
@@ -78,6 +80,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      <Footer />
     </div>
   );
 }
