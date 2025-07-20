@@ -4,23 +4,18 @@ import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import SubjectManagement from '@/components/subjects/SubjectManagement';
-import { useSelector, useDispatch } from 'react-redux';
-import type { RootState, AppDispatch } from '../../store';
-import { fetchSubjects } from '../../store';
-import { getSubjects, Subject } from '@/firebase/subjects';
-import { BookOpen, Users, TrendingUp, Calendar, Settings, BarChart3 } from 'lucide-react';
+import { useSubjects } from '@/hooks/use-redux';
+import { BookOpen, Users, TrendingUp, Calendar, Settings, BarChart3, RefreshCw } from 'lucide-react';
 
 export default function AdminSubjectsPage() {
-  const dispatch = useDispatch<AppDispatch>();
-  const subjectsState = useSelector((state: RootState) => state.subjects);
-  const { data: subjects, status: subjectsStatus, error: subjectsError } = subjectsState;
+  const subjects = useSubjects();
 
+  // Fetch data on component mount
   useEffect(() => {
-    if (subjectsStatus === 'idle') {
-      dispatch(fetchSubjects());
-    }
-  }, [dispatch, subjectsStatus]);
+    subjects.refetch();
+  }, []);
 
   const getUtilizationColor = (utilization: number) => {
     if (utilization >= 90) return 'text-red-600';
@@ -39,8 +34,7 @@ export default function AdminSubjectsPage() {
     );
   }
 
-  if (subjectsStatus === 'loading') {
-    // Only show a minimal spinner while checking auth (if needed)
+  if (subjects.status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
@@ -48,21 +42,60 @@ export default function AdminSubjectsPage() {
     );
   }
 
-  if (subjectsStatus === 'failed') {
-    return <div className="text-center py-8 text-red-600">{subjectsError || 'Failed to load subjects.'}</div>;
+  if (subjects.status === 'failed') {
+    return (
+      <div className="flex min-h-screen bg-gray-50">
+        <div className="flex-1 p-8">
+          <div className="text-center py-8">
+            <p className="text-red-600 mb-4">{subjects.error || 'Failed to load subjects.'}</p>
+            <Button onClick={subjects.refetch} variant="outline">
+              Retry
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  if (!subjects || subjects.length === 0) {
-    return <div className="text-center py-8 text-gray-500">No subjects found.</div>;
+  if (!subjects.data || subjects.data.length === 0) {
+    return (
+      <div className="flex min-h-screen bg-gray-50">
+        <div className="flex-1 p-8">
+          <div className="text-center py-8 text-gray-500">
+            <p>No subjects found.</p>
+            <Button onClick={subjects.refetch} className="mt-4" variant="outline">
+              Refresh
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
       <div className="flex-1 p-8">
-        <h1 className="text-3xl font-bold mb-6">Subjects</h1>
-        {subjectsStatus === 'loading' ? <SubjectsSkeleton /> : (
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold">Subjects</h1>
+          <div className="flex items-center space-x-2">
+            <Badge variant={subjects.status === 'loading' ? 'secondary' : 'default'}>
+              {subjects.status}
+            </Badge>
+            <Button 
+              onClick={subjects.refetch}
+              disabled={subjects.status === 'loading'}
+              size="sm"
+              variant="outline"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${subjects.status === 'loading' ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+        </div>
+
+        {subjects.status === 'loading' ? <SubjectsSkeleton /> : (
           <div className="space-y-4">
-            {subjects.map((subject) => {
+            {subjects.data.map((subject) => {
               const utilization = (subject.currentEnrollment / subject.maxCapacity) * 100;
               return (
                 <div key={subject.id} className="flex items-center justify-between p-4 border rounded-lg">
@@ -111,7 +144,7 @@ export default function AdminSubjectsPage() {
                 <CardTitle>Subject Overview</CardTitle>
               </CardHeader>
               <CardContent>
-                {subjectsStatus === 'loading' ? (
+                {subjects.status === 'loading' ? (
                   <div className="animate-pulse space-y-4">
                     {[...Array(3)].map((_, i) => (
                       <div key={i} className="h-20 bg-gray-200 rounded"></div>
@@ -119,7 +152,7 @@ export default function AdminSubjectsPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {subjects.map((subject) => {
+                    {subjects.data.map((subject) => {
                       const utilization = (subject.currentEnrollment / subject.maxCapacity) * 100;
                       return (
                         <div key={subject.id} className="flex items-center justify-between p-4 border rounded-lg">

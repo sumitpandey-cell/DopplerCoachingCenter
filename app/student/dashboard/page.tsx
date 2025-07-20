@@ -2,15 +2,16 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getTestResultsByStudent, getAnnouncements, getStudyMaterials } from '@/firebase/firestore';
+import { useAnalytics, useAnnouncements, useMaterials } from '@/hooks/use-redux';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, TrendingUp, Bell, Calendar, Award } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { BookOpen, TrendingUp, Bell, Calendar, Award, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import { motion } from 'framer-motion';
-import {animate, stagger} from "animejs"
+import { animate, stagger } from "animejs";
 
 function Placeholder({ icon: Icon, title, description }: { icon: React.ElementType, title: string, description: string }) {
   return (
@@ -33,6 +34,37 @@ export default function StudentDashboard() {
   const [recentTests, setRecentTests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Redux hooks
+  const analytics = useAnalytics();
+  const announcements = useAnnouncements();
+  const materials = useMaterials();
+
+  // Fetch data on component mount
+  useEffect(() => {
+    analytics.refetch();
+    announcements.refetch();
+    materials.refetch();
+  }, []);
+
+  // Update stats when data is loaded
+  useEffect(() => {
+    if (analytics.status === 'succeeded' && analytics.data) {
+      const testResults = analytics.data.testResults || [];
+      const totalScore = testResults.reduce((sum: number, test: any) => sum + test.percentage, 0);
+      const averageScore = testResults.length > 0 ? totalScore / testResults.length : 0;
+
+      setStats({
+        totalTests: testResults.length,
+        averageScore: Math.round(averageScore),
+        recentAnnouncements: announcements.data?.slice(0, 3).length || 0,
+        studyMaterials: materials.data?.length || 0,
+      });
+
+      setRecentTests(testResults.slice(0, 5));
+      setLoading(false);
+    }
+  }, [analytics.status, analytics.data, announcements.data, materials.data]);
+
   // Anime.js animations
   useEffect(() => {
     if (!loading) {
@@ -54,39 +86,7 @@ export default function StudentDashboard() {
     }
   }, [loading]);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      if (!userProfile?.studentId) return;
-
-      try {
-        const [testResults, announcements, materials] = await Promise.all([
-          getTestResultsByStudent(userProfile.studentId),
-          getAnnouncements(),
-          getStudyMaterials(),
-        ]);
-
-        const totalScore = testResults.reduce((sum, test) => sum + test.percentage, 0);
-        const averageScore = testResults.length > 0 ? totalScore / testResults.length : 0;
-
-        setStats({
-          totalTests: testResults.length,
-          averageScore: Math.round(averageScore),
-          recentAnnouncements: announcements.slice(0, 3).length,
-          studyMaterials: materials.length,
-        });
-
-        setRecentTests(testResults.slice(0, 5));
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, [userProfile]);
-
-  if (loading) {
+  if (loading || analytics.status === 'loading') {
     return (
       <div className="p-8">
         <div className="animate-pulse space-y-4">
@@ -109,18 +109,62 @@ export default function StudentDashboard() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <h1 className="text-4xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight dashboard-title">
-          Welcome back, {userProfile?.name}!
-        </h1>
-        <motion.p 
-          className="text-gray-600 dark:text-gray-400 mt-2 text-lg"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3, duration: 0.6 }}
-        >
-          Here&apos;s your academic overview
-        </motion.p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight dashboard-title">
+              Welcome back, {userProfile?.name}!
+            </h1>
+            <motion.p 
+              className="text-gray-600 dark:text-gray-400 mt-2 text-lg"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3, duration: 0.6 }}
+            >
+              Here&apos;s your academic overview
+            </motion.p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Badge variant={analytics.status === 'loading' ? 'secondary' : 'default'}>
+              {analytics.status}
+            </Badge>
+            <Button 
+              onClick={() => {
+                analytics.refetch();
+                announcements.refetch();
+                materials.refetch();
+              }}
+              disabled={analytics.status === 'loading'}
+              size="sm"
+              variant="outline"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${analytics.status === 'loading' ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+        </div>
       </motion.div>
+
+      {/* Error Handling */}
+      {analytics.status === 'failed' && (
+        <motion.div 
+          className="mb-6"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="pt-6">
+              <div className="flex items-center space-x-2 text-red-700">
+                <Bell className="h-4 w-4" />
+                <p>Failed to load dashboard data: {analytics.error}</p>
+                <Button onClick={analytics.refetch} size="sm" variant="outline">
+                  Retry
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Stats Cards */}
       <motion.div 
@@ -248,11 +292,8 @@ export default function StudentDashboard() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <motion.div
-                  whileHover={{ 
-                    rotate: [0, -10, 10, -10, 0],
-                    scale: 1.2
-                  }}
-                  transition={{ duration: 0.5 }}
+                  whileHover={{ rotateY: 180 }}
+                  transition={{ duration: 0.6 }}
                 >
                   <Bell className="h-5 w-5 text-orange-500" />
                 </motion.div>
@@ -261,7 +302,7 @@ export default function StudentDashboard() {
             </CardHeader>
             <CardContent>
               <motion.div 
-                className="text-3xl font-bold text-orange-600 dark:text-orange-300"
+                className="text-3xl font-bold text-orange-700 dark:text-orange-300"
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", stiffness: 500, damping: 25, delay: 1.2 }}
@@ -274,170 +315,92 @@ export default function StudentDashboard() {
         </motion.div>
       </motion.div>
 
-      {/* Recent Test Results & Quick Actions */}
+      {/* Recent Tests Section */}
       <motion.div 
         className="grid grid-cols-1 lg:grid-cols-2 gap-8"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.8, duration: 0.6 }}
       >
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 overflow-hidden">
-            <CardHeader className="flex flex-row items-center gap-2">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <motion.div
-                  whileHover={{ scale: 1.2, rotate: 15 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <TrendingUp className="h-5 w-5 text-green-500" />
-                </motion.div>
-                Recent Test Results
-              </CardTitle>
-              <CardDescription className="ml-auto">Your latest test performances</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {recentTests.length > 0 ? (
-                <div className="space-y-4">
-                  {recentTests.map((test) => (
-                    <motion.div 
-                      key={test.id} 
-                      whileHover={{ scale: 1.02, x: 4 }} 
-                      className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-800 dark:to-blue-900 rounded-xl transition-all border border-gray-200 dark:border-gray-700"
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 * recentTests.indexOf(test) }}
-                    >
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-gray-100">{test.testName}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{test.subject}</p>
-                      </div>
-                      <div className="text-right">
-                        <motion.div
-                          whileHover={{ scale: 1.1 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                        >
-                          <Badge variant={test.percentage >= 80 ? 'default' : test.percentage >= 60 ? 'secondary' : 'destructive'}>
-                          {test.percentage}%
-                          </Badge>
-                        </motion.div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{test.score}/{test.maxScore}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                  <motion.div whileHover={{ x: 4 }}>
-                    <Link href="/student/tests" className="text-blue-600 dark:text-blue-400 hover:underline text-sm">
-                    View all results →
-                    </Link>
+        <Card className="shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-yellow-500" />
+              Recent Test Results
+            </CardTitle>
+            <CardDescription>Your latest test performances</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {recentTests.length > 0 ? (
+              <div className="space-y-4">
+                {recentTests.map((test, index) => (
+                  <motion.div
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 1.0 + index * 0.1, duration: 0.3 }}
+                  >
+                    <div>
+                      <p className="font-medium">{test.testName || 'Test'}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {test.subject || 'Subject'}
+                      </p>
+                    </div>
+                    <Badge variant={test.percentage >= 80 ? 'default' : test.percentage >= 60 ? 'secondary' : 'destructive'}>
+                      {test.percentage}%
+                    </Badge>
                   </motion.div>
-                </div>
-              ) : (
-                <Placeholder icon={TrendingUp} title="No test results yet" description="Your recent test results will appear here once available." />
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <Card className="shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 overflow-hidden">
-            <CardHeader className="flex flex-row items-center gap-2">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <motion.div
-                  whileHover={{ 
-                    scale: 1.2,
-                    filter: "drop-shadow(0 0 8px rgba(168, 85, 247, 0.4))"
-                  }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <LightningBoltIcon className="h-5 w-5 text-purple-500" />
-                </motion.div>
-                Quick Actions
-              </CardTitle>
-              <CardDescription className="ml-auto">Access your most used features</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4">
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                >
-                  <Link href="/student/materials" className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900 dark:to-indigo-900 rounded-xl hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-800 dark:hover:to-indigo-800 transition-all duration-300 flex flex-col items-center group border border-blue-200 dark:border-blue-800">
-                    <motion.div
-                      whileHover={{ rotate: 360 }}
-                      transition={{ duration: 0.6 }}
-                    >
-                      <BookOpen className="h-8 w-8 text-blue-600 dark:text-blue-300 mb-2" />
-                    </motion.div>
-                  <p className="font-medium">Study Materials</p>
-                  </Link>
-                </motion.div>
-                
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                >
-                  <Link href="/student/timetable" className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900 dark:to-emerald-900 rounded-xl hover:from-green-100 hover:to-emerald-100 dark:hover:from-green-800 dark:hover:to-emerald-800 transition-all duration-300 flex flex-col items-center group border border-green-200 dark:border-green-800">
-                    <motion.div
-                      whileHover={{ scale: 1.2, rotateY: 180 }}
-                      transition={{ duration: 0.6 }}
-                    >
-                      <Calendar className="h-8 w-8 text-green-600 dark:text-green-300 mb-2" />
-                    </motion.div>
-                  <p className="font-medium">Timetable</p>
-                  </Link>
-                </motion.div>
-                
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                >
-                  <Link href="/student/performance" className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900 dark:to-pink-900 rounded-xl hover:from-purple-100 hover:to-pink-100 dark:hover:from-purple-800 dark:hover:to-pink-800 transition-all duration-300 flex flex-col items-center group border border-purple-200 dark:border-purple-800">
-                    <motion.div
-                      whileHover={{ 
-                        scale: 1.2,
-                        rotate: [0, -10, 10, -10, 0]
-                      }}
-                      transition={{ duration: 0.5 }}
-                    >
-                      <TrendingUp className="h-8 w-8 text-purple-600 dark:text-purple-300 mb-2" />
-                    </motion.div>
-                  <p className="font-medium">Performance</p>
-                  </Link>
-                </motion.div>
-                
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                >
-                  <Link href="/student/announcements" className="p-4 bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-900 dark:to-yellow-900 rounded-xl hover:from-orange-100 hover:to-yellow-100 dark:hover:from-orange-800 dark:hover:to-yellow-800 transition-all duration-300 flex flex-col items-center group border border-orange-200 dark:border-orange-800">
-                    <motion.div
-                      whileHover={{ 
-                        rotate: [0, -15, 15, -15, 0],
-                        scale: 1.2
-                      }}
-                      transition={{ duration: 0.6 }}
-                    >
-                      <Bell className="h-8 w-8 text-orange-600 dark:text-orange-300 mb-2" />
-                    </motion.div>
-                  <p className="font-medium">Announcements</p>
-                  </Link>
-                </motion.div>
+                ))}
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+            ) : (
+              <Placeholder
+                icon={Award}
+                title="No Test Results"
+                description="Complete your first test to see results here"
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-orange-500" />
+              Recent Announcements
+            </CardTitle>
+            <CardDescription>Latest updates from your institution</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {announcements.data && announcements.data.length > 0 ? (
+              <div className="space-y-4">
+                {announcements.data.slice(0, 3).map((announcement, index) => (
+                  <motion.div
+                    key={announcement.id}
+                    className="p-3 bg-orange-50 dark:bg-orange-950 rounded-lg border border-orange-200 dark:border-orange-800"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 1.2 + index * 0.1, duration: 0.3 }}
+                  >
+                    <p className="font-medium text-orange-800 dark:text-orange-200">
+                      {announcement.title}
+                    </p>
+                    <p className="text-sm text-orange-600 dark:text-orange-400 mt-1">
+                      {announcement.content}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <Placeholder
+                icon={Bell}
+                title="No Announcements"
+                description="Check back later for updates"
+              />
+            )}
+          </CardContent>
+        </Card>
       </motion.div>
     </div>
-  );
-}
-
-// Add this icon for Quick Actions
-function LightningBoltIcon(props: any) {
-  return (
-    <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-    </svg>
   );
 }
