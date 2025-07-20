@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo, memo, useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { LayoutDashboard, BookOpen, Calendar, Bell, TrendingUp, FileText, DollarSign, ChevronDown, Menu, X, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { signOut } from "@/firebase/auth";
-import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 const navigation = [
   { name: "Dashboard", href: "/student/dashboard", icon: LayoutDashboard, color: "text-blue-500" },
@@ -28,6 +29,141 @@ const navigation = [
   },
   { name: "Subject Enrollment", href: "/student/subjects", icon: BookOpen, color: "text-indigo-500" },
 ];
+
+// Optimized navigation item with immediate visual feedback
+const NavigationItem = memo(({ 
+  item, 
+  isActive, 
+  isMobile, 
+  onNavigate,
+  isPending 
+}: { 
+  item: any; 
+  isActive: boolean; 
+  isMobile: boolean; 
+  onNavigate: (href: string) => void; 
+  isPending: boolean;
+}) => {
+  const [isClicked, setIsClicked] = useState(false);
+  const Icon = item.icon;
+  
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsClicked(true);
+    onNavigate(item.href);
+    
+    // Reset clicked state after animation
+    setTimeout(() => setIsClicked(false), 150);
+  }, [item.href, onNavigate]);
+  
+  return (
+    <Link
+      href={item.href}
+      onClick={handleClick}
+      className={cn(
+        'flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-150 group relative overflow-hidden',
+        isActive || isClicked
+          ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg transform scale-105'
+          : 'text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-700 dark:hover:text-blue-300 hover:scale-[1.01]',
+        isPending && 'opacity-75 pointer-events-none'
+      )}
+    >
+      {/* Loading indicator */}
+      {isPending && isClicked && (
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 opacity-50" />
+      )}
+      
+      <motion.div
+        className={cn(
+          'p-2 rounded-lg shadow-sm transition-all',
+          isActive || isClicked
+            ? 'bg-white/20' 
+            : 'bg-white dark:bg-gray-800 group-hover:shadow-md'
+        )}
+        whileHover={{ rotate: 5, scale: 1.1 }}
+      >
+        <item.icon className={cn(
+          'h-4 w-4',
+          isActive || isClicked ? 'text-white' : item.color
+        )} />
+      </motion.div>
+      <span className="group-hover:translate-x-1 transition-transform duration-200">
+        {item.name}
+      </span>
+      {(isActive || isClicked) && (
+        <motion.div
+          className="ml-auto w-2 h-2 bg-white rounded-full"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        />
+      )}
+    </Link>
+  );
+});
+
+NavigationItem.displayName = 'NavigationItem';
+
+const ChildNavigationItem = memo(({ 
+  child, 
+  isActive, 
+  isMobile, 
+  onNavigate,
+  isPending 
+}: { 
+  child: any; 
+  isActive: boolean; 
+  isMobile: boolean; 
+  onNavigate: (href: string) => void; 
+  isPending: boolean;
+}) => {
+  const [isClicked, setIsClicked] = useState(false);
+  const Icon = child.icon;
+  
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsClicked(true);
+    onNavigate(child.href);
+    
+    // Reset clicked state after animation
+    setTimeout(() => setIsClicked(false), 150);
+  }, [child.href, onNavigate]);
+  
+  return (
+    <Link
+      href={child.href}
+      onClick={handleClick}
+      className={cn(
+        'flex items-center gap-3 px-4 py-2 text-sm rounded-lg transition-all duration-150',
+        isActive || isClicked
+          ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
+          : 'text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-700 dark:hover:text-blue-300',
+        isPending && 'opacity-75 pointer-events-none'
+      )}
+    >
+      {/* Loading indicator */}
+      {isPending && isClicked && (
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 opacity-50" />
+      )}
+      
+      <motion.div
+        className={cn(
+          'p-1.5 rounded-md shadow-sm',
+          isActive || isClicked ? 'bg-white/20' : 'bg-white dark:bg-gray-800'
+        )}
+        whileHover={{ scale: 1.1 }}
+      >
+        <child.icon className={cn(
+          'h-3 w-3',
+          isActive || isClicked ? 'text-white' : child.color
+        )} />
+      </motion.div>
+      <span>{child.name}</span>
+    </Link>
+  );
+});
+
+ChildNavigationItem.displayName = 'ChildNavigationItem';
 
 const sidebarVariants = {
   open: {
@@ -86,37 +222,101 @@ export default function StudentSidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [isMobile, setIsMobile] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [currentPath, setCurrentPath] = useState('');
   const pathname = usePathname();
-  const { userProfile } = useAuth();
   const router = useRouter();
+  const { userProfile } = useAuth();
+
+  // Immediate pathname update for instant visual feedback
+  useEffect(() => {
+    setCurrentPath(pathname);
+  }, [pathname]);
+
+  // Memoize mobile check to prevent unnecessary re-renders
+  const checkMobile = useCallback(() => {
+    const mobile = window.innerWidth < 1024;
+    setIsMobile(mobile);
+    if (!mobile) {
+      setIsOpen(true);
+    }
+  }, []);
 
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-      if (window.innerWidth >= 1024) {
-        setIsOpen(true);
-      }
-    };
-    
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
+  }, [checkMobile]);
+
+  // Aggressive route prefetching
+  useEffect(() => {
+    const prefetchRoutes = async () => {
+      const routes = [
+        '/student/dashboard',
+        '/student/materials',
+        '/student/timetable',
+        '/student/performance',
+        '/student/tests',
+        '/student/announcements',
+        '/student/fees',
+        '/student/fees/payments',
+        '/student/subjects'
+      ];
+      
+      // Prefetch high-priority routes immediately
+      const highPriorityRoutes = ['/student/dashboard', '/student/materials', '/student/fees'];
+      for (const route of highPriorityRoutes) {
+        router.prefetch(route);
+      }
+      
+      // Prefetch remaining routes with slight delay
+      setTimeout(() => {
+        routes.forEach(route => {
+          if (!highPriorityRoutes.includes(route)) {
+            router.prefetch(route);
+          }
+        });
+      }, 100);
+    };
+    
+    prefetchRoutes();
+  }, [router]);
+
+  // Optimized navigation handler with immediate feedback
+  const handleNavigation = useCallback((href: string) => {
+    // Immediate visual feedback
+    setCurrentPath(href);
+    
+    startTransition(() => {
+      router.push(href);
+      if (isMobile) {
+        setIsOpen(false);
+      }
+    });
+  }, [router, isMobile]);
+
+  // Memoized toggle function
+  const toggleGroup = useCallback((name: string) => {
+    setOpenGroups((prev) => ({ ...prev, [name]: !prev[name] }));
   }, []);
 
-  const toggleGroup = (name: string) => {
-    setOpenGroups((prev) => ({ ...prev, [name]: !prev[name] }));
-  };
+  // Optimized logout handler
+  const handleLogout = useCallback(async () => {
+    startTransition(async () => {
+      try {
+        await signOut();
+        router.push('/login/student');
+      } catch (err) {
+        console.error('Logout failed:', err);
+      }
+    });
+  }, [router]);
 
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      router.push('/login/student');
-    } catch (err) {
-      console.error('Logout failed:', err);
-    }
-  };
+  // Memoized active state checker
+  const isActive = useCallback((href: string) => currentPath === href, [currentPath]);
 
-  const isActive = (href: string) => pathname === href;
+  // Memoized mobile toggle
+  const toggleMobile = useCallback(() => setIsOpen(!isOpen), [isOpen]);
 
   return (
     <>
@@ -130,7 +330,7 @@ export default function StudentSidebar() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={toggleMobile}
           className="bg-white/90 backdrop-blur-sm shadow-lg border-blue-200 hover:bg-blue-50"
         >
           <motion.div
@@ -227,13 +427,20 @@ export default function StudentSidebar() {
                 >
                   <motion.button
                     onClick={() => toggleGroup(item.name)}
-                    className="flex items-center justify-between w-full px-4 py-3 text-sm font-medium rounded-xl text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/50 transition-all duration-200 group"
+                    className={cn(
+                      'flex items-center justify-between w-full px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group',
+                      'text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:scale-[1.01]'
+                    )}
                     whileHover={{ scale: 1.02, x: 4 }}
                     whileTap={{ scale: 0.98 }}
+                    disabled={isPending}
                   >
                     <div className="flex items-center gap-3">
                       <motion.div
-                        className={`p-2 rounded-lg bg-white dark:bg-gray-800 shadow-sm group-hover:shadow-md transition-shadow ${item.color}`}
+                        className={cn(
+                          'p-2 rounded-lg bg-white dark:bg-gray-800 shadow-sm group-hover:shadow-md transition-shadow',
+                          item.color
+                        )}
                         whileHover={{ rotate: 5 }}
                       >
                         <item.icon className="h-4 w-4" />
@@ -266,25 +473,13 @@ export default function StudentSidebar() {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: childIndex * 0.1 }}
                           >
-                            <Link
-                              href={child.href}
-                              onClick={() => isMobile && setIsOpen(false)}
-                              className={`
-                                flex items-center gap-3 px-4 py-2 text-sm rounded-lg transition-all duration-200
-                                ${isActive(child.href)
-                                  ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
-                                  : 'text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-700 dark:hover:text-blue-300'
-                                }
-                              `}
-                            >
-                              <motion.div
-                                className={`p-1.5 rounded-md ${isActive(child.href) ? 'bg-white/20' : 'bg-white dark:bg-gray-800'} shadow-sm`}
-                                whileHover={{ scale: 1.1 }}
-                              >
-                                <child.icon className={`h-3 w-3 ${isActive(child.href) ? 'text-white' : child.color}`} />
-                              </motion.div>
-                              <span>{child.name}</span>
-                            </Link>
+                            <ChildNavigationItem
+                              child={child}
+                              isActive={isActive(child.href)}
+                              isMobile={isMobile}
+                              onNavigate={handleNavigation}
+                              isPending={isPending}
+                            />
                           </motion.div>
                         ))}
                       </motion.div>
@@ -297,39 +492,13 @@ export default function StudentSidebar() {
                   variants={itemVariants}
                   custom={index}
                 >
-                  <Link
-                    href={item.href}
-                    onClick={() => isMobile && setIsOpen(false)}
-                    className={`
-                      flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group
-                      ${isActive(item.href)
-                        ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg transform scale-105'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-700 dark:hover:text-blue-300'
-                      }
-                    `}
-                  >
-                    <motion.div
-                      className={`p-2 rounded-lg shadow-sm transition-all ${
-                        isActive(item.href) 
-                          ? 'bg-white/20' 
-                          : 'bg-white dark:bg-gray-800 group-hover:shadow-md'
-                      }`}
-                      whileHover={{ rotate: 5, scale: 1.1 }}
-                    >
-                      <item.icon className={`h-4 w-4 ${isActive(item.href) ? 'text-white' : item.color}`} />
-                    </motion.div>
-                    <span className="group-hover:translate-x-1 transition-transform duration-200">
-                      {item.name}
-                    </span>
-                    {isActive(item.href) && (
-                      <motion.div
-                        className="ml-auto w-2 h-2 bg-white rounded-full"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                      />
-                    )}
-                  </Link>
+                  <NavigationItem
+                    item={item}
+                    isActive={isActive(item.href)}
+                    isMobile={isMobile}
+                    onNavigate={handleNavigation}
+                    isPending={isPending}
+                  />
                 </motion.div>
               )
             )}
@@ -343,9 +512,10 @@ export default function StudentSidebar() {
         >
           <motion.button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 group"
+            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 group disabled:opacity-50"
             whileHover={{ scale: 1.02, x: 4 }}
             whileTap={{ scale: 0.98 }}
+            disabled={isPending}
           >
             <motion.div
               className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 group-hover:bg-red-100 dark:group-hover:bg-red-900/40 transition-colors"
@@ -354,7 +524,7 @@ export default function StudentSidebar() {
               <LogOut className="h-4 w-4" />
             </motion.div>
             <span className="group-hover:translate-x-1 transition-transform duration-200">
-              Logout
+              {isPending ? 'Logging out...' : 'Logout'}
             </span>
           </motion.button>
         </motion.div>

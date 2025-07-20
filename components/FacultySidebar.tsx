@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo, useTransition } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { signOut } from '@/firebase/auth';
-import { useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
   Users, 
@@ -30,6 +30,80 @@ const navigation = [
   { name: 'Enter Scores', href: '/faculty/enter-scores', icon: ClipboardList, color: 'text-red-500' },
   { name: 'Announcements', href: '/faculty/post-announcements', icon: Bell, color: 'text-yellow-500' },
 ];
+
+// Optimized navigation item with immediate visual feedback
+const NavigationItem = memo(({ 
+  item, 
+  isActive, 
+  isMobile, 
+  onNavigate,
+  isPending 
+}: { 
+  item: any; 
+  isActive: boolean; 
+  isMobile: boolean; 
+  onNavigate: (href: string) => void; 
+  isPending: boolean;
+}) => {
+  const [isClicked, setIsClicked] = useState(false);
+  const Icon = item.icon;
+  
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsClicked(true);
+    onNavigate(item.href);
+    
+    // Reset clicked state after animation
+    setTimeout(() => setIsClicked(false), 150);
+  }, [item.href, onNavigate]);
+  
+  return (
+    <Link
+      href={item.href}
+      onClick={handleClick}
+      className={cn(
+        'flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group',
+        isActive || isClicked
+          ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg transform scale-105'
+          : 'text-gray-600 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/50 hover:text-green-700 dark:hover:text-green-300',
+        isPending && 'opacity-75 pointer-events-none'
+      )}
+    >
+      {/* Loading indicator */}
+      {isPending && isClicked && (
+        <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-400 opacity-50" />
+      )}
+      
+      <motion.div
+        className={cn(
+          'p-2 rounded-lg shadow-sm transition-all',
+          isActive || isClicked
+            ? 'bg-white/20' 
+            : 'bg-white dark:bg-gray-800 group-hover:shadow-md'
+        )}
+        whileHover={{ rotate: 5, scale: 1.1 }}
+      >
+        <item.icon className={cn(
+          'h-4 w-4',
+          isActive || isClicked ? 'text-white' : item.color
+        )} />
+      </motion.div>
+      <span className="group-hover:translate-x-1 transition-transform duration-200">
+        {item.name}
+      </span>
+      {(isActive || isClicked) && (
+        <motion.div
+          className="ml-auto w-2 h-2 bg-white rounded-full"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        />
+      )}
+    </Link>
+  );
+});
+
+NavigationItem.displayName = 'NavigationItem';
 
 const sidebarVariants = {
   open: {
@@ -87,33 +161,93 @@ const overlayVariants = {
 const FacultySidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [currentPath, setCurrentPath] = useState('');
   const pathname = usePathname();
-  const { userProfile } = useAuth();
   const router = useRouter();
+  const { userProfile } = useAuth();
+
+  // Immediate pathname update for instant visual feedback
+  useEffect(() => {
+    setCurrentPath(pathname);
+  }, [pathname]);
+
+  // Memoize mobile check to prevent unnecessary re-renders
+  const checkMobile = useCallback(() => {
+    const mobile = window.innerWidth < 1024;
+    setIsMobile(mobile);
+    if (!mobile) {
+      setIsOpen(true);
+    }
+  }, []);
 
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-      if (window.innerWidth >= 1024) {
-        setIsOpen(true);
-      }
-    };
-    
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  }, [checkMobile]);
 
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      router.push('/login/faculty');
-    } catch (err) {
-      console.error('Logout failed:', err);
-    }
-  };
+  // Aggressive route prefetching
+  useEffect(() => {
+    const prefetchRoutes = async () => {
+      const routes = [
+        '/faculty/dashboard',
+        '/faculty/students',
+        '/faculty/upload-materials',
+        '/faculty/schedule-tests',
+        '/faculty/enter-scores',
+        '/faculty/post-announcements'
+      ];
+      
+      // Prefetch high-priority routes immediately
+      const highPriorityRoutes = ['/faculty/dashboard', '/faculty/students'];
+      for (const route of highPriorityRoutes) {
+        router.prefetch(route);
+      }
+      
+      // Prefetch remaining routes with slight delay
+      setTimeout(() => {
+        routes.forEach(route => {
+          if (!highPriorityRoutes.includes(route)) {
+            router.prefetch(route);
+          }
+        });
+      }, 100);
+    };
+    
+    prefetchRoutes();
+  }, [router]);
 
-  const isActive = (href: string) => pathname === href;
+  // Optimized navigation handler with immediate feedback
+  const handleNavigation = useCallback((href: string) => {
+    // Immediate visual feedback
+    setCurrentPath(href);
+    
+    startTransition(() => {
+      router.push(href);
+      if (isMobile) {
+        setIsOpen(false);
+      }
+    });
+  }, [router, isMobile]);
+
+  // Optimized logout handler
+  const handleLogout = useCallback(async () => {
+    startTransition(async () => {
+      try {
+        await signOut();
+        router.push('/login/faculty');
+      } catch (err) {
+        console.error('Logout failed:', err);
+      }
+    });
+  }, [router]);
+
+  // Memoized active state checker
+  const isActive = useCallback((href: string) => currentPath === href, [currentPath]);
+
+  // Memoized mobile toggle
+  const toggleMobile = useCallback(() => setIsOpen(!isOpen), [isOpen]);
 
   return (
     <>
@@ -127,7 +261,7 @@ const FacultySidebar = () => {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={toggleMobile}
           className="bg-white/90 backdrop-blur-sm shadow-lg border-green-200 hover:bg-green-50"
         >
           <motion.div
@@ -224,12 +358,16 @@ const FacultySidebar = () => {
                 >
                   <Link
                     href={item.href}
-                    onClick={() => isMobile && setIsOpen(false)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleNavigation(item.href);
+                    }}
                     className={cn(
                       'flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group',
                       active
                         ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg transform scale-105'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/50 hover:text-green-700 dark:hover:text-green-300'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/50 hover:text-green-700 dark:hover:text-green-300',
+                      isPending && 'opacity-75 pointer-events-none'
                     )}
                   >
                     <motion.div
@@ -271,9 +409,10 @@ const FacultySidebar = () => {
         >
           <motion.button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 group"
+            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 group disabled:opacity-50"
             whileHover={{ scale: 1.02, x: 4 }}
             whileTap={{ scale: 0.98 }}
+            disabled={isPending}
           >
             <motion.div
               className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 group-hover:bg-red-100 dark:group-hover:bg-red-900/40 transition-colors"
@@ -282,7 +421,7 @@ const FacultySidebar = () => {
               <LogOut className="h-4 w-4" />
             </motion.div>
             <span className="group-hover:translate-x-1 transition-transform duration-200">
-              Logout
+              {isPending ? 'Logging out...' : 'Logout'}
             </span>
           </motion.button>
         </motion.div>
@@ -291,4 +430,4 @@ const FacultySidebar = () => {
   );
 };
 
-export default FacultySidebar;
+export default memo(FacultySidebar);

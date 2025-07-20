@@ -151,6 +151,20 @@ html {
   background: linear-gradient(to bottom, #334155, #475569);
 }
 
+/* Optimized scrollbar for sidebar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thumb-indigo-200::-webkit-scrollbar-thumb {
+  background-color: #c7d2fe;
+  border-radius: 9999px;
+}
+
+.scrollbar-track-transparent::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
 /* Backdrop blur support */
 .backdrop-blur-custom {
   backdrop-filter: blur(12px);
@@ -168,4 +182,30 @@ html {
 .dark .glass-morphism {
   background: rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Performance optimizations */
+.sidebar-nav {
+  contain: layout style paint;
+  will-change: transform;
+}
+
+.nav-item {
+  contain: layout style;
+  will-change: transform, background-color;
+}
+
+/* Reduce layout thrashing */
+.sidebar-container {
+  contain: layout;
+  transform: translateZ(0);
+}
+
+/* Optimize animations */
+@media (prefers-reduced-motion: reduce) {
+  .nav-item,
+  .sidebar-nav {
+    transition: none !important;
+    animation: none !important;
+  }
 }
