@@ -237,7 +237,7 @@ export default function AdminMaterials() {
                         >
                           <option value="">{subjectsStatus === 'loading' ? 'Loading subjects...' : 'Select Subject'}</option>
                           {subjects.map(subject => (
-                            <option key={subject.id} value={subject.name}>{subject.name}</option>
+                            <option key={subject.id} value={subject.id}>{subject.name}</option>
                           ))}
                         </select>
                       </div>
@@ -368,7 +368,7 @@ export default function AdminMaterials() {
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <BookOpen className="h-8 w-8 text-blue-600" />
-                        <Badge variant="secondary">{material.subject}</Badge>
+                        <Badge variant="secondary">{subjects.find(s => s.id === material.subject)?.name || material.subject}</Badge>
                       </div>
                       <CardTitle className="text-lg">{material.title}</CardTitle>
                       <CardDescription>{material.description}</CardDescription>
@@ -459,7 +459,7 @@ export default function AdminMaterials() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       >
                         {subjects.map(subject => (
-                          <option key={subject.id} value={subject.name}>{subject.name}</option>
+                          <option key={subject.id} value={subject.id}>{subject.name}</option>
                         ))}
                       </select>
                     </div>

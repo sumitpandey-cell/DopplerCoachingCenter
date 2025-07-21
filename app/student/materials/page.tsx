@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { getStudyMaterials, StudyMaterial } from '@/firebase/firestore';
+import { getSubjects, Subject } from '@/firebase/subjects';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ export default function StudyMaterials() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('all');
+  const [subjectsList, setSubjectsList] = useState<Subject[]>([]);
 
   useEffect(() => {
     const fetchMaterials = async () => {
@@ -30,6 +32,14 @@ export default function StudyMaterials() {
       }
     };
     fetchMaterials();
+  }, []);
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      const subs = await getSubjects();
+      setSubjectsList(subs);
+    };
+    fetchSubjects();
   }, []);
 
   // Filter materials by student subjects
@@ -104,8 +114,8 @@ export default function StudyMaterials() {
           className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="all">All Subjects</option>
-          {subjects.map((subject: string) => (
-            <option key={subject} value={subject}>{subject}</option>
+          {subjectsList.filter(sub => subjects.includes(sub.id)).map((subject) => (
+            <option key={subject.id} value={subject.id}>{subject.name}</option>
           ))}
         </select>
       </div>
@@ -117,7 +127,7 @@ export default function StudyMaterials() {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <BookOpen className="h-8 w-8 text-blue-600" />
-                  <Badge variant="secondary">{material.subject}</Badge>
+                  <Badge variant="secondary">{subjectsList.find(s => s.id === material.subject)?.name || material.subject}</Badge>
                 </div>
                 <CardTitle className="text-lg">{material.title}</CardTitle>
                 <CardDescription>{material.description}</CardDescription>
