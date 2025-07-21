@@ -6,9 +6,11 @@ import { getAllTestResults, getAnnouncements, getStudyMaterials } from '@/fireba
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, BookOpen, Bell, TrendingUp, Upload, ClipboardList } from 'lucide-react';
 import Link from 'next/link';
+import { useDataLoading } from '@/contexts/DataLoadingContext';
 
 export default function FacultyDashboard() {
   const { userProfile } = useAuth();
+  const { setIsDataLoading } = useDataLoading();
   const [stats, setStats] = useState({
     totalStudents: 0,
     totalTests: 0,
@@ -44,6 +46,10 @@ export default function FacultyDashboard() {
 
     fetchDashboardData();
   }, []);
+
+  useEffect(() => {
+    setIsDataLoading(loading);
+  }, [loading, setIsDataLoading]);
 
   if (loading) {
     return (

@@ -8,39 +8,26 @@ import { Button } from '@/components/ui/button';
 import SubjectManagement from '@/components/subjects/SubjectManagement';
 import { useSubjects } from '@/hooks/use-redux';
 import { BookOpen, Users, TrendingUp, Calendar, Settings, BarChart3, RefreshCw } from 'lucide-react';
+import { useDataLoading } from '@/contexts/DataLoadingContext';
 
 export default function AdminSubjectsPage() {
   const subjects = useSubjects();
+  const { setIsDataLoading } = useDataLoading();
 
-  // Fetch data on component mount
   useEffect(() => {
     subjects.refetch();
   }, []);
+
+  // Set isDataLoading only for subjects list (critical)
+  useEffect(() => {
+    setIsDataLoading(subjects.status === 'loading');
+  }, [subjects.status, setIsDataLoading]);
 
   const getUtilizationColor = (utilization: number) => {
     if (utilization >= 90) return 'text-red-600';
     if (utilization >= 70) return 'text-yellow-600';
     return 'text-green-600';
   };
-
-  // Simple skeleton for subjects list
-  function SubjectsSkeleton() {
-    return (
-      <div className="space-y-4">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-16 bg-gray-200 rounded animate-pulse" />
-        ))}
-      </div>
-    );
-  }
-
-  if (subjects.status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
 
   if (subjects.status === 'failed') {
     return (
@@ -57,71 +44,9 @@ export default function AdminSubjectsPage() {
     );
   }
 
-  if (!subjects.data || subjects.data.length === 0) {
-    return (
-      <div className="flex min-h-screen bg-gray-50">
-        <div className="flex-1 p-8">
-          <div className="text-center py-8 text-gray-500">
-            <p>No subjects found.</p>
-            <Button onClick={subjects.refetch} className="mt-4" variant="outline">
-              Refresh
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex min-h-screen bg-gray-50">
       <div className="flex-1 p-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold">Subjects</h1>
-          <div className="flex items-center space-x-2">
-            <Badge variant={subjects.status === 'loading' ? 'secondary' : 'default'}>
-              {subjects.status}
-            </Badge>
-            <Button 
-              onClick={subjects.refetch}
-              disabled={subjects.status === 'loading'}
-              size="sm"
-              variant="outline"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${subjects.status === 'loading' ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-          </div>
-        </div>
-
-        {subjects.status === 'loading' ? <SubjectsSkeleton /> : (
-          <div className="space-y-4">
-            {subjects.data.map((subject) => {
-              const utilization = (subject.currentEnrollment / subject.maxCapacity) * 100;
-              return (
-                <div key={subject.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <h3 className="font-semibold">{subject.name}</h3>
-                    <p className="text-sm text-gray-600">{subject.code} • {subject.faculty}</p>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="text-right">
-                      <p className="text-sm font-medium">
-                        {subject.currentEnrollment}/{subject.maxCapacity}
-                      </p>
-                      <p className={`text-xs ${getUtilizationColor(utilization)}`}>
-                        {Math.round(utilization)}% full
-                      </p>
-                    </div>
-                    <Badge variant={subject.isActive ? 'default' : 'secondary'}>
-                      {subject.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
         <Tabs defaultValue="overview" className="space-y-6 mt-8">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview" className="flex items-center">
@@ -150,10 +75,19 @@ export default function AdminSubjectsPage() {
                       <div key={i} className="h-20 bg-gray-200 rounded"></div>
                     ))}
                   </div>
+                ) : !subjects.data || subjects.data.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No subjects found.</p>
+                    <Button onClick={subjects.refetch} className="mt-4" variant="outline">
+                      Refresh
+                    </Button>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     {subjects.data.map((subject) => {
-                      const utilization = (subject.currentEnrollment / subject.maxCapacity) * 100;
+                      const utilization = subject.maxCapacity
+                        ? (subject.currentEnrollment / subject.maxCapacity) * 100
+                        : 0;
                       return (
                         <div key={subject.id} className="flex items-center justify-between p-4 border rounded-lg">
                           <div>

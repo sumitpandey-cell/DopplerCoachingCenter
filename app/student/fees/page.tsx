@@ -5,46 +5,44 @@ import StudentFeeOverview from '@/components/fees/StudentFeeOverview';
 import FeePaymentTable from '@/components/fees/FeePaymentTable';
 import { getStudentFees, getFeePayments } from '@/firebase/fees';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDataLoading } from '@/contexts/DataLoadingContext';
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchCurrentStudent } from '../../store';
+import type { RootState } from '../../store';
 
 export default function StudentFeesPage() {
-  const { userProfile, loading } = useAuth();
-  const studentId = userProfile?.studentId;
-
-  const [fees, setFees] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
-
-  const handlePay = (paymentId: string) => {
-    alert(`Initiate payment for fee ID: ${paymentId}`);
-    // Here you can open a payment modal or redirect to payment gateway
-  };
-
-  const handleManualPaymentSubmit = (paymentId: string, txnId: string, screenshotFile: File | null) => {
-    alert(`Manual payment submitted for fee ID: ${paymentId}, txnId: ${txnId}`);
-    // Save to Firestore or backend here
-  };
+  const { userProfile } = useAuth();
+  const { setIsDataLoading } = useDataLoading();
+  const dispatch = useDispatch();
+  const student = useSelector((state: RootState) => state.student.data);
+  const studentStatus = useSelector((state: RootState) => state.student.status);
 
   useEffect(() => {
-    if (studentId) {
-      loadFeeData();
+    if (studentStatus === 'idle' && userProfile?.studentId) {
+      dispatch(fetchCurrentStudent(userProfile.studentId));
     }
-    // eslint-disable-next-line
-  }, [studentId]);
+  }, [studentStatus, userProfile, dispatch]);
 
-  const loadFeeData = async () => {
-    if (!studentId) return;
-    const [studentFees, feePayments] = await Promise.all([
-      getStudentFees(studentId),
-      getFeePayments(studentId)
-    ]);
-    setFees(studentFees);
-    setPayments(feePayments);
-  };
+  useEffect(() => {
+    setIsDataLoading(studentStatus === 'loading');
+  }, [studentStatus, setIsDataLoading]);
 
-  if (loading) return <div>Loading...</div>;
-  if (!studentId) return <div>Please log in to view your fees.</div>;
+  if (studentStatus === 'loading') {
+    return (
+      <div className="p-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-40 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
 
-  // Only show pending fees for payment requests
-  const pendingFees = fees.filter(fee => fee.status === 'pending');
+  if (!student) return <div>Please log in to view your fees.</div>;
+
+  // If student.fees is not available, you may need to fetch it separately or add it to the API
+  const fees = student.fees || [];
+  const pendingFees = fees.filter((fee: any) => fee.status === 'pending');
 
   return (
     <div className="p-4 md:p-8 w-full">
@@ -54,7 +52,7 @@ export default function StudentFeesPage() {
       </div>
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow p-6">
         <FeePaymentTable
-          payments={pendingFees.map(fee => ({
+          payments={pendingFees.map((fee: any) => ({
             id: fee.id,
             receiptNumber: fee.receiptNumber || '-',
             amount: fee.amount,
@@ -64,9 +62,9 @@ export default function StudentFeesPage() {
             studentFeeId: fee.id,
             status: fee.status,
           }))}
-          feeIdToSubjectMap={Object.fromEntries(fees.map(fee => [fee.id, fee.course || fee.subject || '-']))}
-          onPay={handlePay}
-          onManualPaymentSubmit={handleManualPaymentSubmit}
+          feeIdToSubjectMap={Object.fromEntries(fees.map((fee: any) => [fee.id, fee.course || fee.subject || '-']))}
+          onPay={(paymentId: string) => alert(`Initiate payment for fee ID: ${paymentId}`)}
+          onManualPaymentSubmit={(paymentId: string, txnId: string, screenshotFile: File | null) => alert(`Manual payment submitted for fee ID: ${paymentId}, txnId: ${txnId}`)}
         />
       </div>
     </div>

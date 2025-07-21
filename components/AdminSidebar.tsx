@@ -63,7 +63,6 @@ const navigation = [
     color: 'text-orange-500',
     children: [
       { name: 'Timetables', href: '/admin/timetables', icon: Calendar, color: 'text-blue-500' },
-      { name: 'Class Scheduling', href: '/admin/scheduling', icon: Clock, color: 'text-green-500' },
     ]
   },
   {
@@ -234,6 +233,10 @@ const AdminSidebar = () => {
   }, [pathname]);
 
   const handleNavigation = (href: string) => {
+    if (href === currentPath) {
+      // Already on this page, do nothing
+      return;
+    }
     setIsLoading(true);
     setCurrentPath(href);
     router.push(href);

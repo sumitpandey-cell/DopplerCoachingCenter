@@ -18,6 +18,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log('studentAccounts collection not found or empty:', error);
     }
 
+    let activeStudents = 0;
+    try {
+      // Active students count (status == 'active')
+      const activeStudentsSnap = await adminDb.collection('studentAccounts').where('isActive', '==', true).count().get();
+      activeStudents = activeStudentsSnap.data().count;
+      console.log('Active students count:', activeStudents);
+    } catch (error) {
+      console.log('active studentAccounts collection not found or empty:', error);
+    }
+
     try {
       // Faculty count
       const facultyCountSnap = await adminDb.collection('facultyAccounts').count().get();
@@ -53,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     res.status(200).json({
       students: studentsCount,
-      activeStudents: studentsCount, // For now, same as studentsCount
+      activeStudents: activeStudents, // Now only active students
       faculty: facultyCount,
       revenue: monthlyRevenue,
       pendingInquiries

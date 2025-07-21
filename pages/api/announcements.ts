@@ -15,8 +15,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       await adminDb.collection('announcements').doc(id).delete();
       res.status(200).json({ success: true });
+    } else if (req.method === 'POST') {
+      const { announcement } = req.body;
+      if (!announcement) {
+        return res.status(400).json({ error: 'Missing announcement data' });
+      }
+      const { id, ...newAnnouncement } = announcement;
+      const docRef = await adminDb.collection('announcements').add(newAnnouncement);
+      res.status(201).json({ id: docRef.id });
     } else {
-      res.setHeader('Allow', ['GET', 'DELETE']);
+      res.setHeader('Allow', ['GET', 'DELETE', 'POST']);
       res.status(405).end(`Method ${req.method} Not Allowed`);
     }
   } catch (error) {

@@ -41,6 +41,7 @@ import { getStudentByStudentId } from '@/firebase/firestore';
 import { getStudentFees, sendFeeReminders, getFeeAnalytics, getFeePayments, getFeeStructures, getAllStudentFees } from '@/firebase/fees';
 import { collection, getDocs, query, where, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+import { useDataLoading } from '@/contexts/DataLoadingContext';
 
 // Simple skeleton for analytics/payments
 function FeesSkeleton() {
@@ -81,6 +82,7 @@ export default function EnhancedFeesPage() {
     });
 
     const { toast } = useToast();
+    const { setIsDataLoading } = useDataLoading();
 
     const dispatch = useDispatch<AppDispatch>();
     const feesState = useSelector((state: RootState) => state.fees);
@@ -245,14 +247,10 @@ export default function EnhancedFeesPage() {
         }
     };
 
-    if (loading) {
-        // Only show a minimal spinner while checking auth (if needed)
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
-            </div>
-        );
-    }
+    // Set isDataLoading only for fees list (critical)
+    React.useEffect(() => {
+        setIsDataLoading(feesStatus === 'loading');
+    }, [feesStatus, setIsDataLoading]);
 
     if (!isAdminAuthenticated()) {
         return null;

@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { addTimetableEntry } from '@/firebase/firestore';
+import { useDataLoading } from '@/contexts/DataLoadingContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,7 @@ const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Sat
 
 export default function ScheduleTests() {
   const { userProfile } = useAuth();
+  const { setIsDataLoading } = useDataLoading();
   const [formData, setFormData] = useState({
     subject: '',
     time: '',
@@ -23,6 +25,10 @@ export default function ScheduleTests() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    setIsDataLoading(loading);
+  }, [loading, setIsDataLoading]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

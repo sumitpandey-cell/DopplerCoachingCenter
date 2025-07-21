@@ -6,25 +6,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Bell, Calendar, AlertCircle, Info, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { useDataLoading } from '@/contexts/DataLoadingContext';
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchCurrentStudent } from '../../store';
+import type { RootState } from '../../store';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Announcements() {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { userProfile } = useAuth();
+  const { setIsDataLoading } = useDataLoading();
+  const dispatch = useDispatch();
+  const student = useSelector((state: RootState) => state.student.data);
+  const studentStatus = useSelector((state: RootState) => state.student.status);
 
   useEffect(() => {
-    const fetchAnnouncements = async () => {
-      try {
-        const data = await getAnnouncements();
-        setAnnouncements(data);
-      } catch (error) {
-        console.error('Error fetching announcements:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (studentStatus === 'idle' && userProfile?.studentId) {
+      dispatch(fetchCurrentStudent(userProfile.studentId));
+    }
+  }, [studentStatus, userProfile, dispatch]);
 
-    fetchAnnouncements();
-  }, []);
+  const announcements: any[] = student?.announcements || [];
+
+  useEffect(() => {
+    setIsDataLoading(studentStatus === 'loading');
+  }, [studentStatus, setIsDataLoading]);
 
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
@@ -48,65 +53,31 @@ export default function Announcements() {
     }
   };
 
-  if (loading) {
+  if (studentStatus === 'loading') {
     return (
       <div className="p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
-            ))}
-          </div>
+          <div className="h-40 bg-gray-200 rounded"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Announcements</h1>
-        <p className="text-gray-600">Stay updated with important notices and updates</p>
-      </div>
-
-      {announcements.length > 0 ? (
-        <div className="space-y-4">
-          {announcements.map((announcement) => (
-            <Card key={announcement.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    {getPriorityIcon(announcement.priority)}
-                    <div>
-                      <CardTitle className="text-lg">{announcement.title}</CardTitle>
-                      <CardDescription className="flex items-center mt-1">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        {format(announcement.createdAt, 'MMM dd, yyyy • h:mm a')}
-                      </CardDescription>
-                    </div>
-                  </div>
-                  {getPriorityBadge(announcement.priority)}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-700 whitespace-pre-wrap">{announcement.content}</p>
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <p className="text-sm text-gray-500">
-                    Posted by: {announcement.createdBy}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+    <div className="p-4 md:p-8 w-full">
+      <h1 className="text-3xl font-bold mb-6">Announcements</h1>
+      {announcements.length === 0 ? (
+        <div className="text-gray-500 dark:text-gray-400">No announcements found.</div>
       ) : (
-        <div className="text-center py-12">
-          <Bell className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No announcements yet</h3>
-          <p className="text-gray-500">
-            Important notices and updates will appear here
-          </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {announcements.map((a: any, idx: number) => (
+            <div key={idx} className="bg-white dark:bg-gray-900 rounded-xl shadow p-6 flex flex-col gap-2 border border-gray-200 dark:border-gray-800">
+              <div className="font-semibold text-lg mb-2">{a.title || 'Announcement'}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">{a.content || ''}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">{a.date ? new Date(a.date.seconds ? a.date.seconds * 1000 : a.date).toLocaleDateString() : 'N/A'}</div>
+            </div>
+          ))}
         </div>
       )}
     </div>

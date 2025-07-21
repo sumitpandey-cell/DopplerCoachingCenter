@@ -13,16 +13,17 @@ import { format } from 'date-fns';
 import { Loader, Skeleton } from '@/components/ui/loader';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '@/app/store';
-import { fetchAnnouncements, deleteAnnouncement } from '@/app/store';
+import { fetchAnnouncements, addAnnouncement, deleteAnnouncement } from '@/app/store';
 
 function parseFirestoreDate(val: any): Date | null {
   if (!val) return null;
   if (typeof val.toDate === 'function') return val.toDate();
   if (val instanceof Date) return val;
+  if (typeof val.seconds === 'number') return new Date(val.seconds * 1000);
+  if (typeof val._seconds === 'number') return new Date(val._seconds * 1000);
   // Try ISO string
   const iso = new Date(val);
   if (!isNaN(iso.getTime())) return iso;
-  // Try to parse Firestore string format (fallback: show 'Invalid date')
   return null;
 }
 
@@ -36,8 +37,9 @@ export default function AdminAnnouncements() {
   const [searchTerm, setSearchTerm] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingAnnouncement, setEditingAnnouncement] = useState<any | null>(null);
   const [buttonLoading, setButtonLoading] = useState(false);
+  const [dateFilterType, setDateFilterType] = useState<'all' | 'today' | 'yesterday' | 'custom'>('all');
+  const [filterDate, setFilterDate] = useState<string>('');
 
   const [newAnnouncement, setNewAnnouncement] = useState({
     title: '',
@@ -63,8 +65,31 @@ export default function AdminAnnouncements() {
     if (priorityFilter !== 'all') {
       filtered = filtered.filter(announcement => announcement.priority === priorityFilter);
     }
+    // Date filter dropdown logic
+    if (dateFilterType === 'today' || dateFilterType === 'yesterday' || (dateFilterType === 'custom' && filterDate)) {
+      filtered = filtered.filter(announcement => {
+        const date = parseFirestoreDate(announcement.createdAt);
+        if (!date) return false;
+        const now = new Date();
+        let filter = null;
+        if (dateFilterType === 'today') {
+          filter = now;
+        } else if (dateFilterType === 'yesterday') {
+          filter = new Date(now);
+          filter.setDate(now.getDate() - 1);
+        } else if (dateFilterType === 'custom' && filterDate) {
+          filter = new Date(filterDate);
+        }
+        if (!filter) return true;
+        return (
+          date.getFullYear() === filter.getFullYear() &&
+          date.getMonth() === filter.getMonth() &&
+          date.getDate() === filter.getDate()
+        );
+      });
+    }
     setFilteredAnnouncements(filtered);
-  }, [announcements, searchTerm, priorityFilter]);
+  }, [announcements, searchTerm, priorityFilter, dateFilterType, filterDate]);
 
   const handleAddAnnouncement = async () => {
     const announcement: Omit<any, 'id'> = {
@@ -74,12 +99,7 @@ export default function AdminAnnouncements() {
     };
     try {
       setButtonLoading(true);
-      // This part needs to be updated to use a Redux action for adding
-      // For now, we'll simulate adding and refetching
-      const res = await fetch('/api/announcements');
-      const data = await res.json();
-      dispatch(fetchAnnouncements()); // Refetch from Firestore
-      setFilteredAnnouncements(data);
+      await dispatch(addAnnouncement(announcement)).unwrap();
     } catch (error) {
       console.error('Error adding announcement:', error);
     } finally {
@@ -91,19 +111,6 @@ export default function AdminAnnouncements() {
       priority: 'medium',
     });
     setShowAddModal(false);
-  };
-
-  const handleEditAnnouncement = (announcement: any) => {
-    setEditingAnnouncement(announcement);
-  };
-
-  const handleUpdateAnnouncement = () => {
-    if (!editingAnnouncement) return;
-
-    // This part needs to be updated to use a Redux action for updating
-    // For now, we'll simulate updating and refetching
-    dispatch(fetchAnnouncements()); // Refetch from Firestore
-    setEditingAnnouncement(null);
   };
 
   const handleDeleteAnnouncement = (announcementId: string) => {
@@ -235,6 +242,27 @@ export default function AdminAnnouncements() {
           <option value="medium">Medium Priority</option>
           <option value="low">Low Priority</option>
         </select>
+        <select
+          value={dateFilterType}
+          onChange={e => setDateFilterType(e.target.value as any)}
+          className="px-3 py-2 border border-gray-300 rounded-md"
+        >
+          <option value="all">All Dates</option>
+          <option value="today">Today</option>
+          <option value="yesterday">Yesterday</option>
+          <option value="custom">Enter date...</option>
+        </select>
+        {dateFilterType === 'custom' && (
+          <div>
+            <Input
+            type="date"
+            value={filterDate}
+            onChange={e => setFilterDate(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md"
+            placeholder="Filter by date"
+          />
+          </div>
+        )}
       </div>
 
       {/* Stats */}
@@ -323,13 +351,6 @@ export default function AdminAnnouncements() {
                     {getPriorityBadge(announcement.priority)}
                     <div className="flex space-x-1">
                       <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditAnnouncement(announcement)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
                         variant="destructive"
                         size="sm"
                         onClick={() => handleDeleteAnnouncement(announcement.id!)}
@@ -363,53 +384,6 @@ export default function AdminAnnouncements() {
             }
           </p>
         </div>
-      )}
-
-      {/* Edit Announcement Modal */}
-      {editingAnnouncement && (
-        <Dialog open={!!editingAnnouncement} onOpenChange={() => setEditingAnnouncement(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Announcement</DialogTitle>
-              <DialogDescription>Update announcement information</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="edit-title">Title</Label>
-                <Input
-                  id="edit-title"
-                  value={editingAnnouncement.title}
-                  onChange={(e) => setEditingAnnouncement(prev => prev ? { ...prev, title: e.target.value } : null)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-priority">Priority</Label>
-                <select
-                  id="edit-priority"
-                  value={editingAnnouncement.priority}
-                  onChange={(e) => setEditingAnnouncement(prev => prev ? { ...prev, priority: e.target.value as any } : null)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="low">Low Priority</option>
-                  <option value="medium">Medium Priority</option>
-                  <option value="high">High Priority</option>
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="edit-content">Content</Label>
-                <Textarea
-                  id="edit-content"
-                  value={editingAnnouncement.content}
-                  onChange={(e) => setEditingAnnouncement(prev => prev ? { ...prev, content: e.target.value } : null)}
-                  rows={6}
-                />
-              </div>
-              <Button loading={buttonLoading} onClick={handleUpdateAnnouncement} className="w-full">
-                Update Announcement
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       )}
     </div>
   );

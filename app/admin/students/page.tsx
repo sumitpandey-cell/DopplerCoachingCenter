@@ -7,6 +7,7 @@ import { addStudent, updateStudent, deleteStudent, restoreStudent, activateStude
 import { getSubjects, Subject } from '@/firebase/firestore';
 import { enrollStudentInSubjects } from '@/firebase/subjects';
 import { useStudents, useSubjects } from '@/hooks/use-redux';
+import { useDataLoading } from '@/contexts/DataLoadingContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,7 +19,6 @@ import { Users, Search, Plus, Edit, Trash2, Mail, Phone, Calendar, Award, BookOp
 import { format, isValid } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Loader, Skeleton } from '@/components/ui/loader';
-import { FixedSizeList as List } from 'react-window';
 
 interface Student {
   id: string;
@@ -29,7 +29,7 @@ interface Student {
   course: string;
   batch: string;
   joinDate: Date;
-  status: 'active' | 'inactive' | 'graduated';
+  status: 'active' | 'inactive' ;
   totalTests: number;
   averageScore: number;
   subjects: string[]; // Add subjects field
@@ -76,6 +76,7 @@ export default function AdminStudents() {
   // Redux hooks
   const students = useStudents();
   const subjects = useSubjects();
+  const { setIsDataLoading, triggerRefresh } = useDataLoading();
 
   // In newStudent state, remove 'courses' and only keep 'subjects' and 'batches'
   const [newStudent, setNewStudent] = useState({
@@ -92,6 +93,11 @@ export default function AdminStudents() {
     students.refetch();
     subjects.refetch();
   }, []);
+
+  // Set isDataLoading only for students list (critical)
+  useEffect(() => {
+    setIsDataLoading(students.status === 'loading');
+  }, [students.status, setIsDataLoading]);
 
   useEffect(() => {
     let filtered = students.data || [];
@@ -219,6 +225,7 @@ export default function AdminStudents() {
       await deleteStudent(studentId);
       // Refresh students data
       students.refetch();
+      triggerRefresh();
       // Also refresh inactive students
       const snap = await getDocs(collection(db, 'studentAccounts'));
       const inactiveArray = snap.docs.map(doc => {
@@ -285,6 +292,7 @@ export default function AdminStudents() {
       await activateStudent(studentId);
       // Refresh students data
       students.refetch();
+      triggerRefresh();
       // Also refresh inactive students
       const snap = await getDocs(collection(db, 'studentAccounts'));
       const inactiveArray = snap.docs.map(doc => {
@@ -318,8 +326,6 @@ export default function AdminStudents() {
         return <Badge className="bg-green-100 text-green-800">Active</Badge>;
       case 'inactive':
         return <Badge className="bg-red-100 text-red-800">Inactive</Badge>;
-      case 'graduated':
-        return <Badge className="bg-blue-100 text-blue-800">Graduated</Badge>;
       default:
         return <Badge className="bg-gray-100 text-gray-800">Unknown</Badge>;
     }
@@ -395,7 +401,6 @@ export default function AdminStudents() {
                   <option value="all">All Status</option>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
-                  <option value="graduated">Graduated</option>
                 </select>
                 <select
                   value={subjectFilter}
@@ -489,21 +494,33 @@ export default function AdminStudents() {
                         Subjects
                       </Label>
                       <div className="col-span-3">
-                        <select
-                          multiple
-                          value={newStudent.subjects}
-                          onChange={(e) => {
-                            const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-                            setNewStudent({ ...newStudent, subjects: selectedOptions });
-                          }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
+                        <div className="flex flex-wrap gap-2">
                           {subjects.data?.map((subject) => (
-                            <option key={subject.id} value={subject.id}>
-                              {subject.name}
-                            </option>
+                            <label key={subject.id} className="flex items-center space-x-2 bg-gray-50 px-2 py-1 rounded border border-gray-200">
+                              <input
+                                type="checkbox"
+                                value={subject.id}
+                                checked={newStudent.subjects.includes(subject.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setNewStudent({
+                                      ...newStudent,
+                                      subjects: [...newStudent.subjects, subject.id],
+                                    });
+                                  } else {
+                                    setNewStudent({
+                                      ...newStudent,
+                                      subjects: newStudent.subjects.filter((id) => id !== subject.id),
+                                    });
+                                  }
+                                }}
+                                className="accent-blue-600"
+                              />
+                              <span>{subject.name}</span>
+                            </label>
                           ))}
-                        </select>
+                        </div>
+                        <span className="text-xs text-gray-400 mt-1 block">Select one or more subjects.</span>
                       </div>
                     </div>
                   </div>

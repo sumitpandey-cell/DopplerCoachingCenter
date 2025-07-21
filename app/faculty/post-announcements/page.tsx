@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Bell, CheckCircle } from 'lucide-react';
 import { useEffect } from 'react';
+import { useDataLoading } from '@/contexts/DataLoadingContext';
 
 const UPDATE_TYPES = [
   { value: 'announcement', label: 'Announcement' },
@@ -20,6 +21,7 @@ const UPDATE_TYPES = [
 
 export default function PostAnnouncements() {
   const { userProfile } = useAuth();
+  const { setIsDataLoading } = useDataLoading();
   const [subjects, setSubjects] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     title: '',
@@ -45,6 +47,10 @@ export default function PostAnnouncements() {
     };
     fetchSubjects();
   }, [userProfile]);
+
+  useEffect(() => {
+    setIsDataLoading(loading);
+  }, [loading, setIsDataLoading]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;

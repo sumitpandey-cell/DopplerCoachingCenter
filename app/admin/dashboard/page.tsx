@@ -14,32 +14,9 @@ import {
   TrendingUp, 
   DollarSign, 
   Bell,
-  UserCheck,
-  FileText,
-  Clock,
-  Award,
   RefreshCw
 } from 'lucide-react';
-
-// Simple skeleton for stats cards
-function StatsSkeleton() {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-      {[...Array(5)].map((_, i) => (
-        <Card key={i} className="bg-gradient-to-br from-gray-100 to-gray-200 border-0 shadow-md animate-pulse">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <div className="h-4 w-24 bg-gray-300 rounded" />
-            <div className="h-4 w-4 bg-gray-300 rounded-full" />
-          </CardHeader>
-          <CardContent>
-            <div className="h-8 w-20 bg-gray-300 rounded mb-2" />
-            <div className="h-3 w-16 bg-gray-200 rounded" />
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
+import { useDataLoading } from '@/contexts/DataLoadingContext';
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
@@ -51,6 +28,7 @@ export default function AdminDashboard() {
   const students = useStudents();
   const subjects = useSubjects();
   const announcements = useAnnouncements();
+  const { setIsDataLoading, refreshKey } = useDataLoading();
 
   useEffect(() => {
     if (!isAdminAuthenticated()) {
@@ -64,21 +42,24 @@ export default function AdminDashboard() {
   // Fetch data when component mounts only if not already loaded
   useEffect(() => {
     if (!loading) {
-      // Only fetch if data is not already loaded
-      if (dashboard.status === 'idle') {
-        dashboard.refetch();
-      }
-      if (students.status === 'idle') {
-        students.refetch();
-      }
-      if (subjects.status === 'idle') {
-        subjects.refetch();
-      }
-      if (announcements.status === 'idle') {
-        announcements.refetch();
-      }
+      if (dashboard.status === 'idle') dashboard.refetch();
+      if (students.status === 'idle') students.refetch();
+      if (subjects.status === 'idle') subjects.refetch();
+      if (announcements.status === 'idle') announcements.refetch();
     }
-  }, [loading, dashboard.status, students.status, subjects.status, announcements.status]);
+  }, [loading, dashboard.refetch, dashboard.status, students.status, subjects.status, announcements.status]);
+
+  useEffect(() => {
+    if (refreshKey > 0) {
+      dashboard.refetch();
+      students.refetch();
+    }
+  }, [refreshKey, dashboard.refetch, students.refetch]);
+
+  // Set data loading state in context (only for critical data: auth and dashboard stats)
+  useEffect(() => {
+    setIsDataLoading(loading || dashboard.status === 'loading');
+  }, [loading, dashboard.status, setIsDataLoading]);
 
   if (loading) {
     // Only show a minimal spinner while checking auth
@@ -94,7 +75,6 @@ export default function AdminDashboard() {
   }
 
   const stats = dashboard.stats;
-  const isLoading = dashboard.status === 'loading' || students.status === 'loading';
 
   return (
     <div className="flex min-h-screen bg-gray-50">      
@@ -118,11 +98,11 @@ export default function AdminDashboard() {
                   subjects.refetch();
                   announcements.refetch();
                 }}
-                disabled={isLoading}
+                disabled={dashboard.status === 'loading'}
                 size="sm"
                 variant="outline"
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 mr-2 ${dashboard.status === 'loading' ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
             </div>
@@ -130,7 +110,6 @@ export default function AdminDashboard() {
         </div>
 
         {/* Quick Stats */}
-        {isLoading ? <StatsSkeleton /> : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <Card className="bg-gradient-to-br from-blue-100 to-indigo-100 border-0 shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -183,7 +162,6 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </div>
-        )}
 
         {/* Error Handling */}
         {dashboard.status === 'failed' && (
@@ -210,6 +188,17 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                {students.status === 'loading' && (
+                  <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="p-2 bg-gray-100 rounded-full">
+                      <RefreshCw className="h-4 w-4 text-gray-600 animate-spin" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">Loading Students Data</p>
+                      <p className="text-xs text-gray-600">Fetching students...</p>
+                    </div>
+                  </div>
+                )}
                 {students.status === 'succeeded' && students.data.length > 0 && (
                   <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
                     <div className="p-2 bg-blue-100 rounded-full">
@@ -221,7 +210,17 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 )}
-                
+                {subjects.status === 'loading' && (
+                  <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="p-2 bg-gray-100 rounded-full">
+                      <RefreshCw className="h-4 w-4 text-gray-600 animate-spin" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">Loading Subjects</p>
+                      <p className="text-xs text-gray-600">Fetching subjects...</p>
+                    </div>
+                  </div>
+                )}
                 {subjects.status === 'succeeded' && subjects.data.length > 0 && (
                   <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
                     <div className="p-2 bg-green-100 rounded-full">
@@ -233,7 +232,17 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 )}
-                
+                {announcements.status === 'loading' && (
+                  <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="p-2 bg-gray-100 rounded-full">
+                      <RefreshCw className="h-4 w-4 text-gray-600 animate-spin" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">Loading Announcements</p>
+                      <p className="text-xs text-gray-600">Fetching announcements...</p>
+                    </div>
+                  </div>
+                )}
                 {announcements.status === 'succeeded' && announcements.data.length > 0 && (
                   <div className="flex items-center space-x-3 p-3 bg-orange-50 rounded-lg">
                     <div className="p-2 bg-orange-100 rounded-full">
@@ -242,18 +251,6 @@ export default function AdminDashboard() {
                     <div>
                       <p className="font-medium text-sm">Announcements Active</p>
                       <p className="text-xs text-gray-600">{announcements.data.length} announcements posted</p>
-                    </div>
-                  </div>
-                )}
-
-                {students.status === 'loading' || subjects.status === 'loading' || announcements.status === 'loading' && (
-                  <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                    <div className="p-2 bg-gray-100 rounded-full">
-                      <RefreshCw className="h-4 w-4 text-gray-600 animate-spin" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">Loading Data</p>
-                      <p className="text-xs text-gray-600">Fetching latest information...</p>
                     </div>
                   </div>
                 )}

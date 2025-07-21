@@ -9,17 +9,24 @@ import { TrendingUp, Users, BookOpen, Award, Calendar, Target, Activity, BarChar
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState, AppDispatch } from '../../store';
 import { fetchAnalytics } from '../../store';
+import { useDataLoading } from '@/contexts/DataLoadingContext';
 
 export default function AdminAnalytics() {
   const dispatch = useDispatch<AppDispatch>();
   const analyticsState = useSelector((state: RootState) => state.analytics);
   const { data: analytics, status: analyticsStatus, error: analyticsError } = analyticsState;
+  const { setIsDataLoading } = useDataLoading();
 
   useEffect(() => {
     if (analyticsStatus === 'idle') {
       dispatch(fetchAnalytics());
     }
   }, [dispatch, analyticsStatus]);
+
+  // Set isDataLoading only for analytics summary (critical)
+  useEffect(() => {
+    setIsDataLoading(analyticsStatus === 'loading');
+  }, [analyticsStatus, setIsDataLoading]);
 
   // Prepare chart data
   const performanceData = analytics?.testResults
