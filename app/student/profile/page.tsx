@@ -9,6 +9,9 @@ import { Loader2, Edit, Save, Key, Camera } from 'lucide-react';
 import Link from 'next/link';
 import { updateStudentProfile } from '@/firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchCurrentStudent } from '../../store';
+import type { RootState } from '../../store';
 
 function getInitials(name: string): string {
   return name
@@ -21,12 +24,12 @@ function getInitials(name: string): string {
 }
 
 export default function StudentProfilePage() {
-  const { userProfile, loading, user } = useAuth();
+  const { userProfile } = useAuth();
   const searchParams = useSearchParams();
+  const dispatch = useDispatch();
+  const student = useSelector((state: RootState) => state.student.data);
+  const studentStatus = useSelector((state: RootState) => state.student.status);
   const [editMode, setEditMode] = useState(false);
-  const [name, setName] = useState(userProfile?.name || '');
-  const [email] = useState(userProfile?.email || '');
-  const [phone, setPhone] = useState((userProfile as any)?.phone || '');
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,12 +41,26 @@ export default function StudentProfilePage() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    if (studentStatus === 'idle' && userProfile?.studentId) {
+      dispatch(fetchCurrentStudent(userProfile.studentId));
+    }
+  }, [studentStatus, userProfile, dispatch]);
+
+  // Use Redux for current student profile
+  // const currentStudent = students.find((s: any) => s.studentId === userProfile?.studentId);
+
+  // Use Redux for display, but keep AuthContext for auth and update
+  const [name, setName] = useState(student?.name || userProfile?.name || '');
+  const [email] = useState(student?.email || userProfile?.email || '');
+  const [phone, setPhone] = useState(student?.phone || (userProfile as any)?.phone || '');
+
   // Real update logic
   const handleSave = async () => {
     setSaving(true);
     setError(null);
     try {
-      await updateStudentProfile(user?.uid || '', (userProfile as any)?.studentId || '', { name, phone });
+      await updateStudentProfile(userProfile?.uid || '', (userProfile as any)?.studentId || '', { name, phone });
       setSaving(false);
       setEditMode(false);
       setSuccess(true);
@@ -56,107 +73,62 @@ export default function StudentProfilePage() {
     }
   };
 
-  if (loading) {
+  if (studentStatus === 'loading') {
     return (
-      <div className="flex items-center justify-center min-h-[40vh]">
-        <Loader2 className="animate-spin h-10 w-10 text-blue-600" />
+      <div className="p-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-40 bg-gray-200 rounded"></div>
+        </div>
       </div>
     );
   }
 
-  if (!userProfile) {
-    return <div className="text-center py-12 text-gray-500">Profile not found.</div>;
+  if (!student) {
+    return <div className="p-8 text-gray-500 dark:text-gray-400">No profile data found.</div>;
   }
 
   // Format dates
-  const createdAt = userProfile.createdAt ? new Date(userProfile.createdAt).toLocaleDateString() : '-';
-  const lastLogin = (userProfile as any)?.lastLogin ? new Date((userProfile as any).lastLogin).toLocaleString() : undefined;
+  const createdAt = student.createdAt ? new Date(student.createdAt).toLocaleDateString() : '-';
+  const lastLogin = (student as any)?.lastLogin ? new Date((student as any).lastLogin).toLocaleString() : undefined;
 
   return (
-    <div className="p-4 md:p-8 w-full flex justify-center">
-      <Card className="w-full max-w-xl shadow-xl border border-blue-100 dark:border-blue-800 bg-white dark:bg-gray-950 p-0">
-        <CardHeader className="flex flex-col items-center gap-2 pt-8 pb-4">
-          {/* Avatar with upload icon */}
-          <div className="relative group mb-2">
-            {(userProfile as any)?.photoUrl ? (
-              <img
-                src={(userProfile as any).photoUrl}
-                alt="avatar"
-                className="h-20 w-20 rounded-full object-cover border-4 border-blue-200 dark:border-blue-700 shadow"
-              />
-            ) : (
-              <span className="h-20 w-20 rounded-full bg-blue-500 text-white flex items-center justify-center text-3xl font-bold border-4 border-blue-200 dark:border-blue-700 shadow">
-                {getInitials(userProfile.name)}
-              </span>
-            )}
-            {/* Upload icon (not functional, for UI) */}
-            <button
-              className="absolute bottom-1 right-1 bg-white dark:bg-gray-800 rounded-full p-1 border border-gray-200 dark:border-gray-700 shadow group-hover:scale-110 transition"
-              title="Upload photo"
-              tabIndex={-1}
-            >
-              <Camera className="h-5 w-5 text-blue-600 dark:text-blue-300" />
-            </button>
+    <div className="p-4 md:p-8 w-full max-w-2xl mx-auto">
+      <h1 className="text-3xl font-bold mb-6">My Profile</h1>
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow p-6 border border-gray-200 dark:border-gray-800">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-20 h-20 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-3xl font-bold text-blue-700 dark:text-blue-300">
+            {student.name ? student.name[0] : '?'}
           </div>
-          <CardTitle className="text-2xl font-bold text-blue-700 dark:text-blue-300">My Profile</CardTitle>
-        </CardHeader>
-        <CardContent className="px-6 pb-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 mb-6">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Name</label>
-              {editMode ? (
-                <Input value={name} onChange={e => setName(e.target.value)} className="max-w-xs" />
-              ) : (
-                <div className="text-base font-semibold text-gray-900 dark:text-gray-100">{userProfile.name}</div>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Email</label>
-              <div className="text-base font-semibold text-gray-900 dark:text-gray-100 break-all">{email}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Role</label>
-              <div className="inline-block px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs font-semibold">
-                {userProfile.role}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Phone</label>
-              {editMode ? (
-                <Input value={phone} onChange={e => setPhone(e.target.value)} className="max-w-xs" />
-              ) : (
-                <div className="text-base font-semibold text-gray-900 dark:text-gray-100">{phone ? phone : <span className="italic text-gray-400">Not set</span>}</div>
-              )}
-            </div>
-            {(lastLogin !== undefined) && (
-              <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Last Login</label>
-                <div className="text-base text-gray-700 dark:text-gray-300">{lastLogin}</div>
-              </div>
-            )}
-            <div>
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Account Created</label>
-              <div className="text-base text-gray-700 dark:text-gray-300">{createdAt}</div>
-            </div>
+          <div>
+            <div className="text-xl font-semibold">{student.name || '-'}</div>
+            <div className="text-gray-600 dark:text-gray-400">{student.email || '-'}</div>
+            <div className="text-gray-600 dark:text-gray-400">ID: {student.studentId || '-'}</div>
           </div>
-          <div className="flex flex-wrap items-center gap-4 mt-4">
-            {editMode ? (
-              <Button onClick={handleSave} disabled={saving} className="flex items-center gap-2">
-                {saving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />} Save
-              </Button>
-            ) : (
-              <Button variant="outline" onClick={() => setEditMode(true)} className="flex items-center gap-2">
-                <Edit className="h-4 w-4" /> Edit
-              </Button>
-            )}
-            <Link href="/student/profile/password" className="flex items-center gap-2 text-blue-600 hover:underline text-sm">
-              <Key className="h-4 w-4" /> Change Password
-            </Link>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <div className="text-gray-500 text-sm">Phone</div>
+            <div className="font-medium">{student.phone || '-'}</div>
           </div>
-          {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
-          {success && <div className="text-green-600 text-sm mt-2">Profile updated successfully!</div>}
-        </CardContent>
-      </Card>
+          <div>
+            <div className="text-gray-500 text-sm">Course</div>
+            <div className="font-medium">{student.course || '-'}</div>
+          </div>
+          <div>
+            <div className="text-gray-500 text-sm">Batch</div>
+            <div className="font-medium">{student.batch || '-'}</div>
+          </div>
+          <div>
+            <div className="text-gray-500 text-sm">Join Date</div>
+            <div className="font-medium">{student.joinDate ? new Date(student.joinDate.seconds ? student.joinDate.seconds * 1000 : student.joinDate).toLocaleDateString() : '-'}</div>
+          </div>
+          <div>
+            <div className="text-gray-500 text-sm">Status</div>
+            <div className="font-medium capitalize">{student.status || '-'}</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 } 

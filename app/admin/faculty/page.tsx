@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { UserCheck, Search, Plus, Edit, Trash2, Mail, Phone, Calendar, BookOpen,
 import { format } from 'date-fns';
 import { useFaculty, useAppDispatch } from '@/hooks/use-redux';
 import { addFaculty, updateFaculty, deleteFaculty } from '@/app/store';
+import { useDataLoading } from '@/contexts/DataLoadingContext';
 
 interface Faculty {
   id: string;
@@ -34,6 +35,7 @@ interface Faculty {
 export default function AdminFacultyPage() {
   const faculty = useFaculty();
   const dispatch = useAppDispatch();
+  const { setIsDataLoading } = useDataLoading();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -51,15 +53,17 @@ export default function AdminFacultyPage() {
     status: 'active' as const,
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (faculty.status === 'idle') {
       faculty.refetch();
     }
   }, [faculty.status, faculty.refetch]);
 
-  if (faculty.status === 'loading') {
-    return <div className="p-8 text-center">Loading faculty...</div>;
-  }
+  // Set isDataLoading only for faculty list (critical)
+  useEffect(() => {
+    setIsDataLoading(faculty.status === 'loading');
+  }, [faculty.status, setIsDataLoading]);
+
   if (faculty.status === 'failed') {
     return <div className="p-8 text-center text-red-600">Failed to load faculty: {faculty.error}</div>;
   }
@@ -120,6 +124,35 @@ export default function AdminFacultyPage() {
   };
 
   const subjectOptions = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'Computer Science'];
+
+  // Filtering logic for faculty list
+  const filteredFaculty = faculty.data
+    .filter(facultyMember => {
+      // Status filter
+      let status = facultyMember.status;
+      if (!status) {
+        if (typeof facultyMember.isActive === 'boolean') {
+          status = facultyMember.isActive ? 'active' : 'inactive';
+        } else {
+          status = 'inactive';
+        }
+      }
+      if (statusFilter !== 'all' && status !== statusFilter) {
+        return false;
+      }
+      // Search filter
+      if (
+        searchTerm &&
+        !(
+          facultyMember.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          facultyMember.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          facultyMember.facultyId.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      ) {
+        return false;
+      }
+      return true;
+    });
 
   return (
     <div className="p-8">
@@ -254,7 +287,7 @@ export default function AdminFacultyPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -288,107 +321,85 @@ export default function AdminFacultyPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Avg Rating</p>
-                <p className="text-2xl font-bold">
-                  {faculty.data?.length > 0 
-                    ? (faculty.data.reduce((sum, f) => sum + f.rating, 0) / faculty.data.length).toFixed(1)
-                    : '0.0'}
-                </p>
-              </div>
-              <BookOpen className="h-8 w-8 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Faculty Grid */}
-      {faculty.data?.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {faculty.data.map((facultyMember) => (
-            <Card key={facultyMember.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{facultyMember.fullName}</CardTitle>
-                    <CardDescription>ID: {facultyMember.facultyId}</CardDescription>
-                  </div>
-                  {getStatusBadge(facultyMember.status)}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center text-sm">
-                    <Mail className="h-4 w-4 mr-2 text-gray-500" />
-                    <span className="truncate">{facultyMember.email}</span>
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <Phone className="h-4 w-4 mr-2 text-gray-500" />
-                    <span>{facultyMember.phone}</span>
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <BookOpen className="h-4 w-4 mr-2 text-gray-500" />
-                    <span className="truncate">{facultyMember.qualification}</span>
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <Calendar className="h-4 w-4 mr-2 text-gray-500" />
-                    <span>Joined: {
-                      (() => {
+      {filteredFaculty.length > 0 ? (
+        <div className="space-y-4">
+          {filteredFaculty.map((facultyMember) => {
+            // Fix date formatting
+            let joinDate = 'Not specified';
                         try {
                           let date;
-                          if (facultyMember.createdAt?.toDate) {
-                            date = facultyMember.createdAt.toDate();
-                          } else if (facultyMember.createdAt) {
-                            date = new Date(facultyMember.createdAt);
-                          } else {
-                            return 'Not specified';
+              const cAt = facultyMember.createdAt;
+              console.log('facultyMember.createdAt:', cAt);
+              if (cAt?.toDate) {
+                // Firestore Timestamp
+                date = cAt.toDate();
+              } else if (cAt && typeof cAt.seconds === 'number') {
+                // Firestore Timestamp object (plain)
+                date = new Date(cAt.seconds * 1000);
+              } else if (cAt && typeof cAt._seconds === 'number') {
+                // Firestore Timestamp object with _seconds (SDK internals)
+                date = new Date(cAt._seconds * 1000);
+              } else if (typeof cAt === 'string') {
+                // ISO string
+                date = new Date(cAt);
+              } else if (typeof cAt === 'number') {
+                // Unix timestamp (seconds or ms)
+                date = new Date(cAt > 1e12 ? cAt : cAt * 1000);
+              } else if (cAt) {
+                // Try as Date
+                date = new Date(cAt);
                           }
-                          
-                          if (isNaN(date.getTime())) {
-                            return 'Invalid date';
-                          }
-                          
-                          return format(date, 'MMM dd, yyyy');
+              if (date && !isNaN(date.getTime())) {
+                joinDate = format(date, 'MMM dd, yyyy');
+              }
                         } catch (error) {
-                          return 'Invalid date';
-                        }
-                      })()
-                    }</span>
+              joinDate = 'Not specified';
+            }
+            // Fix status
+            let status = facultyMember.status;
+            if (!status) {
+              if (typeof facultyMember.isActive === 'boolean') {
+                status = facultyMember.isActive ? 'active' : 'inactive';
+              } else {
+                status = 'inactive';
+              }
+            }
+            return (
+              <Card key={facultyMember.id} className="hover:shadow-lg transition-shadow p-0">
+                <div className="flex flex-col md:flex-row items-center md:items-stretch gap-0 md:gap-4 w-full">
+                  {/* Left: Main Info */}
+                  <div className="flex-1 flex flex-col md:flex-row items-center md:items-center gap-4 p-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CardTitle className="text-lg truncate">{facultyMember.fullName}</CardTitle>
+                        <CardDescription className="truncate">ID: {facultyMember.facultyId}</CardDescription>
+                        {getStatusBadge(status)}
+                      </div>
+                      <div className="flex flex-wrap gap-4 text-sm text-gray-700 mb-1">
+                        <span className="flex items-center"><Mail className="h-4 w-4 mr-1 text-gray-500" />{facultyMember.email}</span>
+                        <span className="flex items-center"><Phone className="h-4 w-4 mr-1 text-gray-500" />{facultyMember.phone}</span>
+                        <span className="flex items-center"><BookOpen className="h-4 w-4 mr-1 text-gray-500" />{facultyMember.qualification}</span>
+                        <span className="flex items-center"><Calendar className="h-4 w-4 mr-1 text-gray-500" />Joined: {joinDate}</span>
                   </div>
-                  
-                  <div className="pt-2">
-                    <p className="text-sm text-gray-600 mb-2">Subjects:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {facultyMember.subjects.map((subject) => (
-                        <Badge key={subject} variant="outline" className="text-xs">
-                          {subject}
-                        </Badge>
+                      <div className="flex flex-wrap gap-2 items-center mb-1">
+                        <span className="text-sm text-gray-600">Subjects:</span>
+                        {(facultyMember.subjects as string[]).map((subject: string) => (
+                          <Badge key={subject} variant="outline" className="text-xs">{subject}</Badge>
                       ))}
                     </div>
-                  </div>
-                  
-                  <div className="pt-3 border-t">
-                    <div className="flex justify-between text-sm">
-                      <span>Students: {facultyMember.studentsCount}</span>
-                      <span>Rating: {facultyMember.rating}/5</span>
                     </div>
-                    <div className="text-sm text-gray-600">
-                      Experience: {facultyMember.experience} years
-                    </div>
-                  </div>
-
-                  <div className="flex space-x-2 pt-2">
+                    {/* Right: Stats */}
+                    <div className="flex flex-col items-end min-w-[160px] md:border-l md:pl-4 border-gray-200">
+                      <div className="flex gap-2 mt-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleEditFaculty(facultyMember)}
-                      className="flex-1"
                     >
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
+                          <Edit className="h-4 w-4 mr-1" />Edit
                     </Button>
                     <Button
                       variant="destructive"
@@ -399,9 +410,11 @@ export default function AdminFacultyPage() {
                     </Button>
                   </div>
                 </div>
-              </CardContent>
+                  </div>
+                </div>
             </Card>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-12">
@@ -466,15 +479,6 @@ export default function AdminFacultyPage() {
                   id="edit-qualification"
                   value={editingFaculty.qualification}
                   onChange={(e) => setEditingFaculty(prev => prev ? { ...prev, qualification: e.target.value } : null)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-experience">Experience (Years)</Label>
-                <Input
-                  id="edit-experience"
-                  type="number"
-                  value={editingFaculty.experience}
-                  onChange={(e) => setEditingFaculty(prev => prev ? { ...prev, experience: parseInt(e.target.value) || 0 } : null)}
                 />
               </div>
               <div>

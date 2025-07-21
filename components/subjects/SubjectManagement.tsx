@@ -8,25 +8,23 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { createSubject, getSubjects, Subject, deleteSubject } from '@/firebase/subjects';
 import { BookOpen, Plus, Users, Clock, Calendar, MapPin, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState, AppDispatch } from '@/app/store';
+import { addSubject, deleteSubject, fetchSubjects } from '@/app/store';
+import { Subject } from '@/firebase/subjects';
 
 export default function SubjectManagement() {
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch<AppDispatch>();
+  const { data: subjects, status } = useSelector((state: RootState) => state.subjects);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const { toast } = useToast();
   const [newSubject, setNewSubject] = useState({
     name: '',
     code: '',
     description: '',
-    credits: 3,
-    maxCapacity: 30,
-    prerequisites: [] as string[],
     faculty: '',
     schedule: [{
       day: 'Monday',
@@ -38,40 +36,34 @@ export default function SubjectManagement() {
     addDropDeadline: ''
   });
 
-  useEffect(() => {
-    loadSubjects();
-  }, []);
-
-  const loadSubjects = async () => {
-    setLoading(true);
-    try {
-      const subjectsData = await getSubjects(false);
-      setSubjects(subjectsData);
-    } catch (error) {
-      setError('Failed to load subjects.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleAddSubject = async () => {
     if (!newSubject.name || !newSubject.code) {
-      setError('Subject name and code are required.');
+      toast({
+        title: 'Error',
+        description: 'Subject name and code are required.',
+        variant: 'destructive',
+      });
       return;
     }
     try {
-      await createSubject({
+      await dispatch(addSubject({
         ...newSubject,
         addDropDeadline: new Date(newSubject.addDropDeadline)
-      });
+      })).unwrap();
       setNewSubject({
         name: '', code: '', description: '', credits: 3, maxCapacity: 30, prerequisites: [], faculty: '', schedule: [{ day: 'Monday', startTime: '09:00', endTime: '10:30', room: '' }], isActive: true, addDropDeadline: ''
       });
       setShowAddDialog(false);
-      setSuccess('Subject added successfully!');
-      await loadSubjects();
-    } catch (error) {
-      setError('Failed to create subject.');
+      toast({
+        title: 'Success',
+        description: 'Subject added successfully!',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to create subject.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -79,11 +71,17 @@ export default function SubjectManagement() {
     if (!window.confirm('Are you sure you want to delete this subject?')) return;
     setDeletingId(id);
     try {
-      await deleteSubject(id);
-      setSuccess('Subject deleted successfully!');
-      await loadSubjects();
-    } catch (error) {
-      setError('Failed to delete subject.');
+      await dispatch(deleteSubject(id)).unwrap();
+      toast({
+        title: 'Success',
+        description: 'Subject deleted successfully!',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete subject.',
+        variant: 'destructive',
+      });
     } finally {
       setDeletingId(null);
     }
@@ -117,12 +115,7 @@ export default function SubjectManagement() {
     }));
   };
 
-  const getScheduleDisplay = (schedule: Subject['schedule']) => {
-    if (!Array.isArray(schedule)) return '';
-    return schedule.map(s => `${s.day} ${s.startTime}-${s.endTime} (${s.room})`).join(', ');
-  };
-
-  if (loading) {
+  if (status === 'loading') {
     return (
       <Card>
         <CardContent className="p-6">
@@ -141,8 +134,6 @@ export default function SubjectManagement() {
 
   return (
     <div className="space-y-6">
-      {error && <div className="bg-red-100 text-red-700 px-4 py-2 rounded">{error}</div>}
-      {success && <div className="bg-green-100 text-green-700 px-4 py-2 rounded">{success}</div>}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -197,28 +188,7 @@ export default function SubjectManagement() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="credits">Credits</Label>
-                      <Input
-                        id="credits"
-                        type="number"
-                        value={newSubject.credits}
-                        onChange={(e) => setNewSubject(prev => ({ ...prev, credits: parseInt(e.target.value) || 0 }))}
-                        min="1"
-                        max="6"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="maxCapacity">Max Capacity</Label>
-                      <Input
-                        id="maxCapacity"
-                        type="number"
-                        value={newSubject.maxCapacity}
-                        onChange={(e) => setNewSubject(prev => ({ ...prev, maxCapacity: parseInt(e.target.value) || 0 }))}
-                        min="1"
-                      />
-                    </div>
+                  <div className="grid grid-cols-3 gap-0">
                     <div>
                       <Label htmlFor="faculty">Faculty</Label>
                       <Input
@@ -325,50 +295,27 @@ export default function SubjectManagement() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {subjects.map((subject) => (
-                <Card key={subject.id} className="border rounded-lg p-4 hover:shadow-lg transition-shadow relative">
-                  <div className="flex items-start justify-between mb-3">
+                <Card key={subject.id} className="border rounded-lg bg-white hover:shadow p-2 flex flex-col justify-between min-h-[90px]">
+                  <div className="flex items-center justify-between mb-1">
                     <div>
-                      <h3 className="font-semibold text-lg">{subject.name}</h3>
-                      <p className="text-sm text-gray-600">{subject.code}</p>
+                      <h3 className="font-semibold text-base text-blue-900 leading-tight">{subject.name}</h3>
+                      <span className="text-[11px] text-gray-500">{subject.code}</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline">{subject.credits} Credits</Badge>
-                      <Badge variant={subject.isActive ? 'default' : 'secondary'}>
-                        {subject.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                      <Badge variant={subject.currentEnrollment >= subject.maxCapacity * 0.8 ? 'destructive' : 'outline'}>
-                        {subject.currentEnrollment}/{subject.maxCapacity}
-                      </Badge>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-red-500 hover:bg-red-100"
-                        onClick={() => handleDeleteSubject(subject.id)}
-                        disabled={deletingId === subject.id}
-                        title="Delete Subject"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-red-500 hover:bg-red-100 p-1"
+                      onClick={() => handleDeleteSubject(subject.id)}
+                      disabled={deletingId === subject.id}
+                      title="Delete Subject"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <p className="text-gray-700 mb-3">{subject.description}</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center text-gray-600">
-                      <Users className="h-4 w-4 mr-2" />
-                      Faculty: {subject.faculty}
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <Clock className="h-4 w-4 mr-2" />
-                      {getScheduleDisplay(subject.schedule)}
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      Deadline: {subject.addDropDeadline ? subject.addDropDeadline.toLocaleDateString() : 'N/A'}
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <BookOpen className="h-4 w-4 mr-2" />
-                      Prerequisites: {subject.prerequisites?.length ?? 0} required
-                    </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <Users className="h-4 w-4 mr-1" />
+                    <span className="font-medium">Faculty:</span>
+                    <span>{subject.faculty}</span>
                   </div>
                 </Card>
               ))}

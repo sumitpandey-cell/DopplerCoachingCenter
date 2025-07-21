@@ -8,51 +8,46 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { FileText, Search, Calendar, Award } from 'lucide-react';
 import { format } from 'date-fns';
+import { useDataLoading } from '@/contexts/DataLoadingContext';
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchCurrentStudent } from '../../store';
+import type { RootState } from '../../store';
 
-export default function TestResults() {
+export default function StudentTestsPage() {
   const { userProfile } = useAuth();
-  const [testResults, setTestResults] = useState<TestResult[]>([]);
-  const [filteredResults, setFilteredResults] = useState<TestResult[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { setIsDataLoading } = useDataLoading();
+  const dispatch = useDispatch();
+  const student = useSelector((state: RootState) => state.student.data);
+  const studentStatus = useSelector((state: RootState) => state.student.status);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('all');
 
   useEffect(() => {
-    const fetchTestResults = async () => {
-      if (!userProfile?.studentId) return;
+    if (studentStatus === 'idle' && userProfile?.studentId) {
+      dispatch(fetchCurrentStudent(userProfile.studentId));
+    }
+  }, [studentStatus, userProfile, dispatch]);
 
-      try {
-        const results = await getTestResultsByStudent(userProfile.studentId);
-        setTestResults(results);
-        setFilteredResults(results);
-      } catch (error) {
-        console.error('Error fetching test results:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTestResults();
-  }, [userProfile]);
+  const testResults: any[] = student?.testResults || [];
 
   useEffect(() => {
-    let filtered = testResults;
+    setIsDataLoading(studentStatus === 'loading');
+  }, [studentStatus, setIsDataLoading]);
 
+  // Filtered results
+  const filteredResults = testResults.filter((result: any) => {
+    let match = true;
     if (searchTerm) {
-      filtered = filtered.filter(result =>
-        result.testName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        result.subject.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      match = result.testName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              result.subject.toLowerCase().includes(searchTerm.toLowerCase());
     }
-
     if (selectedSubject !== 'all') {
-      filtered = filtered.filter(result => result.subject === selectedSubject);
+      match = match && result.subject === selectedSubject;
     }
+    return match;
+  });
 
-    setFilteredResults(filtered);
-  }, [testResults, searchTerm, selectedSubject]);
-
-  const subjects = Array.from(new Set(testResults.map(r => r.subject)));
+  const subjects = Array.from(new Set(testResults.map((r: any) => r.subject)));
 
   const getScoreBadgeVariant = (percentage: number) => {
     if (percentage >= 80) return 'default';
@@ -60,13 +55,13 @@ export default function TestResults() {
     return 'destructive';
   };
 
-  if (loading) {
+  if (studentStatus === 'loading') {
     return (
       <div className="p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i: number) => (
               <div key={i} className="h-24 bg-gray-200 rounded"></div>
             ))}
           </div>
@@ -77,82 +72,23 @@ export default function TestResults() {
 
   return (
     <div className="p-4 md:p-8 w-full">
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold text-purple-700 dark:text-purple-300 mb-2 tracking-tight">Test Results</h1>
-        <p className="text-gray-600 dark:text-gray-400">View all your test scores and performance</p>
-      </div>
-
-      {/* Filters */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="Search tests..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <select
-          value={selectedSubject}
-          onChange={(e) => setSelectedSubject(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-        >
-          <option value="all">All Subjects</option>
-          {subjects.map(subject => (
-            <option key={subject} value={subject}>{subject}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Test Results List */}
-      {filteredResults.length > 0 ? (
-        <div className="space-y-4">
-          {filteredResults.map((result) => (
-            <Card key={result.id} className="hover:shadow-lg transition-shadow border border-purple-100 dark:border-purple-800 rounded-xl">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                      <FileText className="h-6 w-6 text-purple-600 dark:text-purple-300" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold">{result.testName}</h3>
-                      <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
-                        <span className="flex items-center">
-                          <Award className="h-4 w-4 mr-1" />
-                          {result.subject}
-                        </span>
-                        <span className="flex items-center">
-                          <Calendar className="h-4 w-4 mr-1" />
-                          {format(result.testDate, 'MMM dd, yyyy')}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <Badge variant={getScoreBadgeVariant(result.percentage)} className="text-lg px-3 py-1">
-                      {result.percentage}%
-                    </Badge>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      {result.score} / {result.maxScore} marks
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      <h1 className="text-3xl font-bold mb-6">My Test Results</h1>
+      {testResults.length === 0 ? (
+        <div className="text-gray-500 dark:text-gray-400">No test results found.</div>
       ) : (
-        <div className="text-center py-12">
-          <FileText className="h-16 w-16 text-purple-300 dark:text-purple-800 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No test results found</h3>
-          <p className="text-gray-500 dark:text-gray-400">
-            {searchTerm || selectedSubject !== 'all' 
-              ? 'Try adjusting your search or filter criteria'
-              : 'Your test results will appear here once faculty enters your scores'
-            }
-          </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {testResults.map((test: any, idx: number) => (
+            <div key={idx} className="bg-white dark:bg-gray-900 rounded-xl shadow p-6 flex flex-col gap-2 border border-gray-200 dark:border-gray-800">
+              <div className="flex items-center justify-between">
+                <div className="font-semibold text-lg">{test.testName || 'Test'}</div>
+                <span className={`px-2 py-1 rounded text-xs font-bold ${test.percentage >= 80 ? 'bg-green-100 text-green-700' : test.percentage >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{test.percentage}%</span>
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Subject: {test.subject || 'N/A'}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Date: {test.date ? new Date(test.date.seconds ? test.date.seconds * 1000 : test.date).toLocaleDateString() : 'N/A'}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Score: {test.score || '-'} / {test.totalMarks || '-'}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Remarks: {test.remarks || '-'}</div>
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -14,6 +14,8 @@ import { sendStudentIdEmail } from '@/lib/email-service';
 import { Loader, Skeleton } from '@/components/ui/loader';
 import { enrollStudentInSubjects } from '@/firebase/subjects';
 import { useEnquiries } from '@/hooks/use-redux';
+import { useSubjects } from '@/hooks/use-redux';
+import { useDataLoading } from '@/contexts/DataLoadingContext';
 
 export default function AdminEnquiries() {
   const [filteredEnquiries, setFilteredEnquiries] = useState<StudentEnquiry[]>([]);
@@ -27,12 +29,22 @@ export default function AdminEnquiries() {
 
   // Redux hooks
   const enquiries = useEnquiries();
+  const subjects = useSubjects();
+  const { setIsDataLoading } = useDataLoading();
+
+  // Set isDataLoading only for enquiries list (critical)
+  useEffect(() => {
+    setIsDataLoading(enquiries.status === 'loading');
+  }, [enquiries.status, setIsDataLoading]);
 
   useEffect(() => {
     if (enquiries.status === 'idle') {
       enquiries.refetch();
     }
-  }, [enquiries.status, enquiries.refetch]);
+    if (subjects.status === 'idle') {
+      subjects.refetch();
+    }
+  }, [enquiries.status, enquiries.refetch, subjects.status, subjects.refetch]);
 
   useEffect(() => {
     let filtered = enquiries.data || [];
@@ -320,10 +332,14 @@ export default function AdminEnquiries() {
                   <div className="text-sm">
                     <p className="font-medium text-gray-700">Subjects:</p>
                     <p className="text-gray-600">
-                      {enquiry.subjects && enquiry.subjects.length > 0 
-                        ? enquiry.subjects.join(', ') 
-                        : 'No subjects selected'
-                      }
+                      {enquiry.subjects && enquiry.subjects.length > 0 && subjects.data && subjects.data.length > 0
+                        ? enquiry.subjects
+                            .map((id: string) => {
+                              const subj = subjects.data.find((s: any) => s.id === id);
+                              return subj ? subj.name : id;
+                            })
+                            .join(', ')
+                        : 'No subjects selected'}
                     </p>
                   </div>
                   

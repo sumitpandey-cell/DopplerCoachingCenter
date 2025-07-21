@@ -8,6 +8,7 @@ import { LoaderOverlay } from '@/components/ui/loader';
 import { Suspense } from 'react';
 import { motion } from 'framer-motion';
 import {animate, stagger} from 'animejs';
+import { DataLoadingProvider, useDataLoading } from '@/contexts/DataLoadingContext';
 
 export default function FacultyLayout({
   children,
@@ -50,44 +51,35 @@ export default function FacultyLayout({
     return null;
   }
 
+  // Wrap the layout in DataLoadingProvider
   return (
-    <div className="flex">
-      <FacultySidebar />
-      <motion.div 
-        className="flex-1 bg-gray-50 dark:bg-gray-950 relative overflow-auto"
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        {/* Faculty Topbar */}
-        <motion.div 
-          className="flex items-center justify-between px-6 py-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-lg border-b border-green-100 dark:border-green-800"
-          initial={{ y: -100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        >
-          <motion.div 
-            className="font-bold text-xl bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent faculty-topbar-animate"
-            whileHover={{ scale: 1.05 }}
-          >
-            Faculty Dashboard
-          </motion.div>
-          <motion.div 
-            className="flex items-center gap-3 faculty-topbar-animate"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              Welcome, <span className="font-semibold text-green-600 dark:text-green-400">{userProfile?.name}</span>
-            </div>
-          </motion.div>
-        </motion.div>
-        
-        <Suspense fallback={<div className='absolute inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70'><LoaderOverlay /></div>}>
-          {children}
-        </Suspense>
-      </motion.div>
-    </div>
+    <DataLoadingProvider>
+      <div className="flex">
+        <FacultySidebar />
+        <ContentWithOverlay>{children}</ContentWithOverlay>
+      </div>
+    </DataLoadingProvider>
+  );
+}
+
+function ContentWithOverlay({ children }: { children: React.ReactNode }) {
+  const { isDataLoading } = useDataLoading();
+  return (
+    <motion.div 
+      className="flex-1 bg-gray-50 dark:bg-gray-950 relative overflow-auto"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.5, delay: 0.2 }}
+    >
+      {/* Faculty Topbar */}
+      {isDataLoading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70">
+          <LoaderOverlay />
+        </div>
+      )}
+      <Suspense fallback={<div className='absolute inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70'><LoaderOverlay /></div>}>
+        {children}
+      </Suspense>
+    </motion.div>
   );
 }

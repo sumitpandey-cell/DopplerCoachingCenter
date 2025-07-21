@@ -1,4 +1,5 @@
 import { configureStore, createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { useDispatch } from 'react-redux';
 
 // Types
 interface Student {
@@ -99,6 +100,33 @@ export const fetchSubjects = createAsyncThunk('subjects/fetchSubjects', async ()
   return await res.json() as Subject[];
 });
 
+export const addSubject = createAsyncThunk('subjects/addSubject', async (subject: Omit<Subject, 'id'>) => {
+  const res = await fetch('/api/subjects', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subject }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || 'Failed to add subject');
+  }
+  const { id } = await res.json();
+  return { ...subject, id };
+});
+
+export const deleteSubject = createAsyncThunk('subjects/deleteSubject', async (id: string) => {
+  const res = await fetch('/api/subjects', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || 'Failed to delete subject');
+  }
+  return id;
+});
+
 const subjectsSlice = createSlice({
   name: 'subjects',
   initialState: {
@@ -126,6 +154,12 @@ const subjectsSlice = createSlice({
       .addCase(fetchSubjects.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.error.message || 'Failed to fetch subjects';
+      })
+      .addCase(addSubject.fulfilled, (state, action) => {
+        state.data.push(action.payload);
+      })
+      .addCase(deleteSubject.fulfilled, (state, action) => {
+        state.data = state.data.filter(s => s.id !== action.payload);
       });
   },
 });
@@ -297,6 +331,20 @@ export const fetchAnnouncements = createAsyncThunk('announcements/fetchAnnouncem
   return await res.json() as Announcement[];
 });
 
+export const addAnnouncement = createAsyncThunk('announcements/addAnnouncement', async (announcement: Omit<Announcement, 'id'>) => {
+  const res = await fetch('/api/announcements', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ announcement }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || 'Failed to add announcement');
+  }
+  const { id } = await res.json();
+  return { ...announcement, id };
+});
+
 export const deleteAnnouncement = createAsyncThunk('announcements/deleteAnnouncement', async (id: string) => {
   const res = await fetch(`/api/announcements?id=${id}`, {
     method: 'DELETE',
@@ -332,6 +380,9 @@ const announcementsSlice = createSlice({
       .addCase(fetchAnnouncements.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.error.message || 'Failed to fetch announcements';
+      })
+      .addCase(addAnnouncement.fulfilled, (state, action) => {
+        state.data.push(action.payload);
       })
       .addCase(deleteAnnouncement.fulfilled, (state, action) => {
         state.data = state.data.filter(a => a.id !== action.payload);
@@ -497,9 +548,46 @@ const facultySlice = createSlice({
   },
 });
 
+// Single Student Slice (for student portal)
+export const fetchCurrentStudent = createAsyncThunk(
+  'student/fetchCurrentStudent',
+  async (studentId: string) => {
+    const res = await fetch(`/api/student?studentId=${studentId}`);
+    console.log(res)
+    if (!res.ok) throw new Error('Failed to fetch student');
+    return await res.json();
+  }
+);
+
+const singleStudentSlice = createSlice({
+  name: 'student',
+  initialState: {
+    data: null as any,
+    status: 'idle' as 'idle' | 'loading' | 'succeeded' | 'failed',
+    error: null as string | null,
+  },
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchCurrentStudent.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(fetchCurrentStudent.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.data = action.payload;
+      })
+      .addCase(fetchCurrentStudent.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.error.message || 'Failed to fetch student';
+      });
+  },
+});
+
 const store = configureStore({
   reducer: {
     students: studentsSlice.reducer,
+    student: singleStudentSlice.reducer, // <-- add this line
     subjects: subjectsSlice.reducer,
     fees: feesSlice.reducer,
     materials: materialsSlice.reducer,
@@ -514,6 +602,7 @@ const store = configureStore({
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
+export const useAppDispatch = () => useDispatch<AppDispatch>();
 
 // Export actions
 export const {

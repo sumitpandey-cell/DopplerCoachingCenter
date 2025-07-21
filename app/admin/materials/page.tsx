@@ -22,15 +22,17 @@ import { Loader, Skeleton } from '@/components/ui/loader';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState, AppDispatch } from '../../store';
 import { fetchMaterials, fetchSubjects } from '../../store';
+import { useDataLoading } from '@/contexts/DataLoadingContext';
 
 function parseFirestoreDate(val: any): Date | null {
   if (!val) return null;
   if (typeof val.toDate === 'function') return val.toDate();
   if (val instanceof Date) return val;
+  if (typeof val.seconds === 'number') return new Date(val.seconds * 1000);
+  if (typeof val._seconds === 'number') return new Date(val._seconds * 1000);
   // Try ISO string
   const iso = new Date(val);
   if (!isNaN(iso.getTime())) return iso;
-  // Try to parse Firestore string format (fallback: show 'Invalid date')
   return null;
 }
 
@@ -54,8 +56,14 @@ export default function AdminMaterials() {
   const dispatch = useDispatch<AppDispatch>();
   const materialsState = useSelector((state: RootState) => state.materials);
   const subjectsState = useSelector((state: RootState) => state.subjects);
+  const { setIsDataLoading } = useDataLoading();
   const { data: materials, status: materialsStatus, error: materialsError } = materialsState;
   const { data: subjects, status: subjectsStatus } = subjectsState;
+
+  // Set isDataLoading only for materials list (critical)
+  useEffect(() => {
+    setIsDataLoading(materialsStatus === 'loading');
+  }, [materialsStatus, setIsDataLoading]);
 
   useEffect(() => {
     if (materialsStatus === 'idle') {
@@ -126,15 +134,16 @@ export default function AdminMaterials() {
 
   const handleUpdateMaterial = async () => {
     if (!editingMaterial) return;
-    
     try {
       setButtonLoading(true);
-      
-      await updateStudyMaterial(editingMaterial.id!, editingMaterial);
-      
+      // Ensure uploadedAt is a Date object
+      const updatedMaterial = {
+        ...editingMaterial,
+        uploadedAt: parseFirestoreDate(editingMaterial.uploadedAt) || new Date(),
+      };
+      await updateStudyMaterial(editingMaterial.id!, updatedMaterial);
       // Refresh materials list
       dispatch(fetchMaterials());
-      
       setEditingMaterial(null);
     } catch (error) {
       console.error('Error updating material:', error);
@@ -196,7 +205,6 @@ export default function AdminMaterials() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <div className="flex-1 p-8">
-        <h1 className="text-3xl font-bold mb-6">Study Materials</h1>
         {materialsStatus === 'loading' ? <MaterialsSkeleton /> : (
           <>
             <div className="mb-8">

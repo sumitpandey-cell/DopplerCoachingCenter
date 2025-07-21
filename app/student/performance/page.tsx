@@ -8,6 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import PerformanceChart from '@/components/PerformanceChart';
 import { TrendingUp, Award, Target, BookOpen, Users, BarChart2, FileText, MessageCircle } from 'lucide-react';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { useDataLoading } from '@/contexts/DataLoadingContext';
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchCurrentStudent } from '../../store';
+import type { RootState } from '../../store';
 
 const MOCK_BATCH_OVERVIEW = {
   batch: 'Alpha 2024',
@@ -32,41 +36,22 @@ const FOCUS_THRESHOLD = 60;
 
 export default function Performance() {
   const { userProfile } = useAuth();
-  const [testResults, setTestResults] = useState<TestResult[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { setIsDataLoading } = useDataLoading();
+  const dispatch = useDispatch();
+  const student = useSelector((state: RootState) => state.student.data);
+  const studentStatus = useSelector((state: RootState) => state.student.status);
 
   useEffect(() => {
-    const fetchTestResults = async () => {
-      if (!userProfile?.studentId) return;
+    if (studentStatus === 'idle' && userProfile?.studentId) {
+      dispatch(fetchCurrentStudent(userProfile.studentId));
+    }
+  }, [studentStatus, userProfile, dispatch]);
 
-      try {
-        const results = await getTestResultsByStudent(userProfile.studentId);
-        setTestResults(results);
-      } catch (error) {
-        console.error('Error fetching test results:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const testResults: any[] = student?.testResults || [];
 
-    fetchTestResults();
-  }, [userProfile]);
-
-  if (loading) {
-    return (
-      <div className="p-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-          <div className="h-96 bg-gray-200 rounded"></div>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    setIsDataLoading(studentStatus === 'loading');
+  }, [studentStatus, setIsDataLoading]);
 
   const totalTests = testResults.length;
   const totalScore = testResults.reduce((sum, test) => sum + test.percentage, 0);

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Users, Search, Mail, Phone, GraduationCap, User, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useDataLoading } from '@/contexts/DataLoadingContext';
 
 interface StudentDisplayData {
   studentId: string;
@@ -22,6 +23,7 @@ interface StudentDisplayData {
 
 export default function Students() {
   const { user, userProfile } = useAuth();
+  const { setIsDataLoading } = useDataLoading();
   const [students, setStudents] = useState<StudentDisplayData[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<StudentDisplayData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,6 +80,10 @@ export default function Students() {
   }, [user]);
 
   useEffect(() => {
+    setIsDataLoading(loading);
+  }, [loading, setIsDataLoading]);
+
+  useEffect(() => {
     const filtered = students.filter(student =>
       student.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.studentId.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -85,22 +91,6 @@ export default function Students() {
     );
     setFilteredStudents(filtered);
   }, [students, searchTerm]);
-
-  if (loading) {
-    return (
-      <div className="p-8">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-12 bg-gray-200 rounded w-1/3"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-48 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-8">

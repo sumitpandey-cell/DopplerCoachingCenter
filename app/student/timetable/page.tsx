@@ -5,36 +5,28 @@ import { getTimetable, TimetableEntry } from '@/firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, MapPin, User } from 'lucide-react';
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchCurrentStudent } from '../../store';
+import type { RootState } from '../../store';
+import { useAuth } from '@/contexts/AuthContext';
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export default function Timetable() {
-  const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { userProfile } = useAuth();
+  const dispatch = useDispatch();
+  const student = useSelector((state: RootState) => state.student.data);
+  const studentStatus = useSelector((state: RootState) => state.student.status);
 
   useEffect(() => {
-    const fetchTimetable = async () => {
-      try {
-        const data = await getTimetable();
-        setTimetable(data);
-      } catch (error) {
-        console.error('Error fetching timetable:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (studentStatus === 'idle' && userProfile?.studentId) {
+      dispatch(fetchCurrentStudent(userProfile.studentId));
+    }
+  }, [studentStatus, userProfile, dispatch]);
 
-    fetchTimetable();
-  }, []);
+  const timetable = student?.timetable || [];
 
-  const groupedTimetable = daysOfWeek.reduce((acc, day) => {
-    acc[day] = timetable
-      .filter(entry => entry.day === day)
-      .sort((a, b) => a.time.localeCompare(b.time));
-    return acc;
-  }, {} as Record<string, TimetableEntry[]>);
-
-  if (loading) {
+  if (studentStatus === 'loading') {
     return (
       <div className="p-8">
         <div className="animate-pulse space-y-4">
@@ -48,6 +40,17 @@ export default function Timetable() {
       </div>
     );
   }
+
+  if (!timetable.length) {
+    return <div className="p-8 text-gray-500 dark:text-gray-400">No timetable data found.</div>;
+  }
+
+  const groupedTimetable = daysOfWeek.reduce((acc, day) => {
+    acc[day] = timetable
+      .filter(entry => entry.day === day)
+      .sort((a, b) => a.time.localeCompare(b.time));
+    return acc;
+  }, {} as Record<string, TimetableEntry[]>);
 
   return (
     <div className="p-4 md:p-8 w-full">

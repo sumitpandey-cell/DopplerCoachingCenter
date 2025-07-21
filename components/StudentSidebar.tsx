@@ -5,11 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { LayoutDashboard, BookOpen, Calendar, Bell, TrendingUp, FileText, DollarSign, ChevronDown, Menu, X, User, LogOut } from "lucide-react";
+import { LayoutDashboard, BookOpen, Calendar, Bell, TrendingUp, FileText, DollarSign, ChevronDown, Menu, X, User, LogOut, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { signOut } from "@/firebase/auth";
 import { cn } from "@/lib/utils";
+import type { Variants } from 'framer-motion';
+import { useNavigation } from '@/contexts/NavigationContext';
 
 const navigation = [
   { name: "Dashboard", href: "/student/dashboard", icon: LayoutDashboard, color: "text-blue-500" },
@@ -165,11 +167,12 @@ const ChildNavigationItem = memo(({
 
 ChildNavigationItem.displayName = 'ChildNavigationItem';
 
-const sidebarVariants = {
+// Fix framer-motion Variants types
+const sidebarVariants: Variants = {
   open: {
     x: 0,
     transition: {
-      type: "spring",
+      type: 'spring',
       stiffness: 300,
       damping: 30,
       staggerChildren: 0.1,
@@ -177,9 +180,9 @@ const sidebarVariants = {
     }
   },
   closed: {
-    x: "-100%",
+    x: -280,
     transition: {
-      type: "spring",
+      type: 'spring',
       stiffness: 300,
       damping: 30,
       staggerChildren: 0.05,
@@ -188,12 +191,12 @@ const sidebarVariants = {
   }
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
   open: {
     opacity: 1,
     x: 0,
     transition: {
-      type: "spring",
+      type: 'spring',
       stiffness: 300,
       damping: 24
     }
@@ -207,7 +210,7 @@ const itemVariants = {
   }
 };
 
-const overlayVariants = {
+const overlayVariants: Variants = {
   open: {
     opacity: 1,
     transition: { duration: 0.3 }
@@ -218,7 +221,34 @@ const overlayVariants = {
   }
 };
 
-export default function StudentSidebar() {
+// Add props for notification, dark mode, and profile button
+interface StudentSidebarProps {
+  notificationsOn: boolean;
+  unreadCount: number;
+  showNotifications: boolean;
+  setShowNotifications: React.Dispatch<React.SetStateAction<boolean>>;
+  notifLoading: boolean;
+  notifications: any[];
+  handleMarkAsRead: (id: string) => void;
+  toggleDark: () => void;
+  dark: boolean;
+  userProfile: any;
+  profileButtonComponent: React.ReactNode;
+}
+
+export default function StudentSidebar({
+  notificationsOn,
+  unreadCount,
+  showNotifications,
+  setShowNotifications,
+  notifLoading,
+  notifications,
+  handleMarkAsRead,
+  toggleDark,
+  dark,
+  userProfile,
+  profileButtonComponent
+}: StudentSidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [isMobile, setIsMobile] = useState(false);
@@ -226,11 +256,12 @@ export default function StudentSidebar() {
   const [currentPath, setCurrentPath] = useState('');
   const pathname = usePathname();
   const router = useRouter();
-  const { userProfile } = useAuth();
+  const { userProfile: authUserProfile } = useAuth(); // Renamed to avoid conflict with prop
+  const { setIsLoading } = useNavigation();
 
-  // Immediate pathname update for instant visual feedback
+  // Fix linter error: setCurrentPath(pathname || "");
   useEffect(() => {
-    setCurrentPath(pathname);
+    setCurrentPath(pathname || "");
   }, [pathname]);
 
   // Memoize mobile check to prevent unnecessary re-renders
@@ -282,18 +313,22 @@ export default function StudentSidebar() {
     prefetchRoutes();
   }, [router]);
 
-  // Optimized navigation handler with immediate feedback
+  // Optimized navigation handler with loading overlay
   const handleNavigation = useCallback((href: string) => {
-    // Immediate visual feedback
     setCurrentPath(href);
-    
+    setIsLoading(true);
     startTransition(() => {
       router.push(href);
       if (isMobile) {
         setIsOpen(false);
       }
     });
-  }, [router, isMobile]);
+  }, [router, isMobile, setIsLoading]);
+
+  // When pathname changes, remove loading overlay
+  useEffect(() => {
+    setIsLoading(false);
+  }, [pathname, setIsLoading]);
 
   // Memoized toggle function
   const toggleGroup = useCallback((name: string) => {
@@ -356,63 +391,26 @@ export default function StudentSidebar() {
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
+
       <motion.aside
         className={`
           ${isMobile ? 'fixed' : 'relative'} 
           top-0 left-0 h-screen bg-gradient-to-b from-white via-blue-50/30 to-white 
           dark:from-gray-900 dark:via-blue-950/30 dark:to-gray-900 
           border-r border-blue-100 dark:border-blue-800 shadow-xl z-40
-          flex flex-col overflow-hidden
+          flex flex-col h-full overflow-hidden
         `}
         variants={sidebarVariants}
         initial={isMobile ? "closed" : "open"}
         animate={isOpen ? "open" : "closed"}
         style={{ width: "280px" }}
       >
-        {/* Header */}
-        <motion.div 
-          className="p-6 border-b border-blue-100 dark:border-blue-800 bg-gradient-to-r from-blue-600 to-indigo-600"
-          variants={itemVariants}
-        >
-          <div className="flex items-center gap-3">
-            <motion.div
-              className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg"
-              whileHover={{ scale: 1.1, rotate: 5 }}
-              transition={{ type: "spring", stiffness: 400, damping: 10 }}
-            >
-              <LayoutDashboard className="h-5 w-5 text-blue-600" />
-            </motion.div>
-            <div>
-              <h2 className="font-bold text-lg text-white">Student Portal</h2>
-              <p className="text-blue-100 text-sm">Welcome back!</p>
-            </div>
+        {/* Profile Box at Top */}
+        <div className="w-full flex justify-center mt-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow p-4 flex flex-col items-center w-11/12">
+            {profileButtonComponent}
           </div>
-        </motion.div>
-
-        {/* User Profile Section */}
-        <motion.div 
-          className="p-4 border-b border-blue-100 dark:border-blue-800"
-          variants={itemVariants}
-        >
-          <motion.div 
-            className="flex items-center gap-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/50 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors cursor-pointer"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold">
-              {userProfile?.name?.charAt(0) || 'S'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-900 dark:text-gray-100 truncate">
-                {userProfile?.name || 'Student'}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                {userProfile?.studentId || 'ID: Not Set'}
-              </p>
-            </div>
-          </motion.div>
-        </motion.div>
+        </div>
 
         {/* Navigation */}
         <motion.nav className="flex-1 p-4 overflow-y-auto" variants={itemVariants}>
@@ -477,7 +475,7 @@ export default function StudentSidebar() {
                               child={child}
                               isActive={isActive(child.href)}
                               isMobile={isMobile}
-                              onNavigate={handleNavigation}
+                              onNavigate={handleNavigation} // <-- ensure this is handleNavigation
                               isPending={isPending}
                             />
                           </motion.div>
@@ -504,30 +502,72 @@ export default function StudentSidebar() {
             )}
           </div>
         </motion.nav>
-
-        {/* Footer */}
-        <motion.div 
-          className="p-4 border-t border-blue-100 dark:border-blue-800"
-          variants={itemVariants}
-        >
-          <motion.button
-            onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 group disabled:opacity-50"
-            whileHover={{ scale: 1.02, x: 4 }}
-            whileTap={{ scale: 0.98 }}
-            disabled={isPending}
-          >
-            <motion.div
-              className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 group-hover:bg-red-100 dark:group-hover:bg-red-900/40 transition-colors"
-              whileHover={{ rotate: -5 }}
+        {/* Footer: Notification, Dark Mode, Logout in a row */}
+        <div className="flex flex-row items-center justify-center gap-4 p-4 border-t border-blue-100 dark:border-blue-800">
+          {/* Notification Bell */}
+          <div className="relative">
+            <button
+              onClick={() => setShowNotifications((v) => !v)}
+              aria-label="Show notifications"
+              className="p-2 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/50 transition-colors"
             >
-              <LogOut className="h-4 w-4" />
-            </motion.div>
-            <span className="group-hover:translate-x-1 transition-transform duration-200">
-              {isPending ? 'Logging out...' : 'Logout'}
-            </span>
-          </motion.button>
-        </motion.div>
+              <Bell className={notificationsOn ? 'text-blue-600' : 'text-gray-400 dark:text-gray-500'} fill={notificationsOn ? 'currentColor' : 'none'} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 font-bold">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            {/* Notification Dropdown */}
+            {showNotifications && (
+              <div className="absolute left-12 top-0 z-50 w-80 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-blue-100 dark:border-blue-800 p-4">
+                <div className="font-bold text-blue-700 dark:text-blue-300 mb-2">Notifications</div>
+                <div className="max-h-64 overflow-y-auto">
+                  {notifLoading ? (
+                    <div className="text-center text-gray-500">Loading...</div>
+                  ) : notifications.length === 0 ? (
+                    <div className="text-center text-gray-500">No notifications yet.</div>
+                  ) : notifications.map((notif) => (
+                    <div
+                      key={notif.id}
+                      className={`rounded-lg p-3 border flex flex-col gap-1 cursor-pointer transition bg-white dark:bg-gray-900 ${notif.isRead ? 'opacity-70' : 'border-blue-300 bg-blue-50 dark:bg-blue-950'}`}
+                      onClick={() => handleMarkAsRead(notif.id!)}
+                    >
+                      <div className="flex items-center gap-2">
+                        {!notif.isRead && <span className="w-2 h-2 bg-blue-500 rounded-full" />}
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">{notif.title}</span>
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300">{notif.description}</div>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowNotifications(false)}
+                  className="mt-2 w-full py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-semibold"
+                >
+                  Close
+                </button>
+              </div>
+            )}
+          </div>
+          {/* Dark Mode Toggle */}
+          <button
+            onClick={toggleDark}
+            aria-label="Toggle dark mode"
+            className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          >
+            {dark ? <Sun className="h-6 w-6 text-yellow-400" /> : <Moon className="h-6 w-6 text-gray-700 dark:text-gray-200" />}
+          </button>
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            className="p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 transition-colors"
+            disabled={isPending}
+            aria-label="Logout"
+          >
+            <LogOut className="h-5 w-5" />
+          </button>
+        </div>
       </motion.aside>
     </>
   );

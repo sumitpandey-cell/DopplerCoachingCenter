@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { addTestResult } from '@/firebase/firestore';
+import { useDataLoading } from '@/contexts/DataLoadingContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +13,7 @@ import { ClipboardList, CheckCircle } from 'lucide-react';
 
 export default function EnterScores() {
   const { userProfile } = useAuth();
+  const { setIsDataLoading } = useDataLoading();
   const [formData, setFormData] = useState({
     studentId: '',
     studentName: '',
@@ -24,6 +26,10 @@ export default function EnterScores() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    setIsDataLoading(loading);
+  }, [loading, setIsDataLoading]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
