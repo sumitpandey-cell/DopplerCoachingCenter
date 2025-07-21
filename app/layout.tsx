@@ -6,6 +6,8 @@ import Footer from '@/components/Footer';
 import { LoaderOverlay } from '@/components/ui/loader';
 import { Suspense } from 'react';
 import { ReduxProvider } from './providers';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import ProgressBar from '@/components/ProgressBar';
 
 export const metadata: Metadata = {
   title: 'Doppler Coaching Center',
@@ -20,16 +22,21 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ReduxProvider>
-          <AuthProvider>
-            <div className="min-h-screen flex flex-col">
-              <NavbarWrapper />
-              <main className="flex-1">
-                <Suspense fallback={<LoaderOverlay />}>{children}</Suspense>
-              </main>
-            </div>
-          </AuthProvider>
-        </ReduxProvider>
+        <ErrorBoundary>
+          <ReduxProvider>
+            <AuthProvider>
+              <div className="min-h-screen flex flex-col">
+                <Suspense fallback={null}>
+                  <ProgressBar />
+                </Suspense>
+                <NavbarWrapper />
+                <main className="flex-1">
+                  <Suspense fallback={<LoaderOverlay />}>{children}</Suspense>
+                </main>
+              </div>
+            </AuthProvider>
+          </ReduxProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

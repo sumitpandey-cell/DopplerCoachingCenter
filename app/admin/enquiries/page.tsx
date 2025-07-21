@@ -95,7 +95,6 @@ export default function AdminEnquiries() {
 
       // Enroll student in selected subjects and create studentFees
       if (enquiry.subjects && enquiry.subjects.length > 0) {
-        console.log("enrollStudentInSubjects")
         await enrollStudentInSubjects(studentId, enquiry.subjects);
       }
 
@@ -111,7 +110,6 @@ export default function AdminEnquiries() {
           password: defaultPassword,
         });
         
-        console.log('Email sent successfully to:', enquiry.email);
       } catch (emailError) {
         console.error('Error sending email:', emailError);
         // Continue even if email fails, but show warning

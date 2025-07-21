@@ -2,33 +2,19 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-
+import { useEffect, useState, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
-import { User, Moon, Sun, Bell } from 'lucide-react';
-import Link from 'next/link';
-import { useState } from 'react';
-import DashboardCards from '@/components/DashboardCards';
-import RecentTestResults from '@/components/RecentTestResults';
-import QuickActions from '@/components/QuickActions';
-import ProfileDropdown from '@/components/ProfileDropdown';
+import { Moon, Sun } from 'lucide-react';
 import StudentSidebar from '@/components/StudentSidebar';
 import { LoaderOverlay } from '@/components/ui/loader';
-import { Suspense } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose } from '@/components/ui/drawer';
 import { getNotificationsByStudent, markNotificationAsRead, Notification } from '@/firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import { AnimatePresence, motion } from 'framer-motion';
-import { animate, stagger } from 'animejs';
 import { DataLoadingProvider, useDataLoading } from '@/contexts/DataLoadingContext';
-import { NavigationProvider } from '@/contexts/NavigationContext';
+import { NavigationProvider, useNavigation } from '@/contexts/NavigationContext';
 
-export default function StudentLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function StudentLayoutContent({ children }: { children: React.ReactNode }) {
   const { user, userProfile, loading } = useAuth();
   const router = useRouter();
   const [dark, setDark] = useState(typeof window !== 'undefined' ? document.documentElement.classList.contains('dark') : false);
@@ -39,18 +25,10 @@ export default function StudentLayout({
   const [notifLoading, setNotifLoading] = useState(false);
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  // Anime.js animations for topbar
-  useEffect(() => {
-    animate('.square', {
-      x: '17rem',
-      delay: stagger(100),
-      duration: stagger(200, { start: 500 }),
-      loop: true,
-      alternate: true
-    });
-  }, []);
+  const { isDataLoading } = useDataLoading();
+  const { isLoading: isNavigating } = useNavigation();
+  const isPageLoading = isDataLoading || isNavigating;
 
-  // Load notification preference from localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('dcc_notifications_on');
@@ -58,7 +36,6 @@ export default function StudentLayout({
     }
   }, []);
 
-  // Fetch notifications
   useEffect(() => {
     const fetchNotifications = async () => {
       if (userProfile?.studentId) {
@@ -71,7 +48,6 @@ export default function StudentLayout({
     if (showNotifications) fetchNotifications();
   }, [showNotifications, userProfile]);
 
-  // Mark as read
   const handleMarkAsRead = async (id: string) => {
     await markNotificationAsRead(id);
     setNotifications((prev) => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
@@ -80,11 +56,7 @@ export default function StudentLayout({
   const toggleDark = () => {
     setDark((prev) => {
       const next = !prev;
-      if (next) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
+      document.documentElement.classList.toggle('dark', next);
       return next;
     });
   };
@@ -92,9 +64,7 @@ export default function StudentLayout({
   const toggleNotifications = () => {
     setNotificationsOn((v) => {
       const next = !v;
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('dcc_notifications_on', String(next));
-      }
+      localStorage.setItem('dcc_notifications_on', String(next));
       toast({
         title: next ? 'Notifications Enabled' : 'Notifications Disabled',
         description: next
@@ -127,57 +97,56 @@ export default function StudentLayout({
     return null;
   }
 
-  // Wrap the layout in DataLoadingProvider
   return (
-    <NavigationProvider>
-      <div className="flex flex-col min-h-screen">
-        <div className="flex flex-1 min-h-0 h-screen">
-          <div className="w-64 h-screen bg-white dark:bg-gray-900 border-r border-blue-100 dark:border-blue-800">
-            <StudentSidebar
-              notificationsOn={notificationsOn}
-              unreadCount={unreadCount}
-              showNotifications={showNotifications}
-              setShowNotifications={setShowNotifications}
-              notifLoading={notifLoading}
-              notifications={notifications}
-              handleMarkAsRead={handleMarkAsRead}
-              toggleDark={toggleDark}
-              dark={dark}
-              userProfile={userProfile}
-              profileButtonComponent={<FloatingProfileButton userProfile={userProfile} />}
-            />
+    <div className="flex flex-1 min-h-0 h-screen">
+      <StudentSidebar
+        notificationsOn={notificationsOn}
+        unreadCount={unreadCount}
+        showNotifications={showNotifications}
+        setShowNotifications={setShowNotifications}
+        notifLoading={notifLoading}
+        notifications={notifications}
+        handleMarkAsRead={handleMarkAsRead}
+        toggleDark={toggleDark}
+        dark={dark}
+        userProfile={userProfile}
+        profileButtonComponent={<FloatingProfileButton userProfile={userProfile} />}
+      />
+      <motion.div 
+        className="flex-1 bg-gray-50 dark:bg-gray-950 relative overflow-y-auto h-screen"
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        {isPageLoading && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70 backdrop-blur-sm">
+            <LoaderOverlay />
           </div>
-          <DataLoadingProvider>
-            <ContentWithOverlay userProfile={userProfile}>{children}</ContentWithOverlay>
-          </DataLoadingProvider>
+        )}
+        <Suspense fallback={<div className='absolute inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70'><LoaderOverlay /></div>}>
+          {children}
+        </Suspense>
+        <div className="md:hidden">
+          <FloatingProfileButton userProfile={userProfile} />
         </div>
-      </div>
-    </NavigationProvider>
+      </motion.div>
+    </div>
   );
 }
 
-function ContentWithOverlay({ children, userProfile }: { children: React.ReactNode, userProfile: any }) {
-  const { isDataLoading } = useDataLoading();
+export default function StudentLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <motion.div 
-      className="flex-1 bg-gray-50 dark:bg-gray-950 relative overflow-y-auto h-screen"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.5, delay: 0.2 }}
-    >
-      {isDataLoading && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70">
-          <LoaderOverlay />
+    <NavigationProvider>
+      <DataLoadingProvider>
+        <div className="flex flex-col min-h-screen">
+          <StudentLayoutContent>{children}</StudentLayoutContent>
         </div>
-      )}
-      <Suspense fallback={<div className='absolute inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70'><LoaderOverlay /></div>}>
-        {children}
-      </Suspense>
-      {/* Floating Profile Button for mobile */}
-      <div className="md:hidden">
-        <FloatingProfileButton userProfile={userProfile} />
-      </div>
-    </motion.div>
+      </DataLoadingProvider>
+    </NavigationProvider>
   );
 }
 
@@ -187,12 +156,12 @@ function FloatingProfileButton({ userProfile }: { userProfile: any }) {
     <div
       className="w-full flex flex-col items-center"
     >
-      <div
+      <button
         className="w-11/12 bg-white dark:bg-gray-800 rounded-xl border border-blue-100 dark:border-blue-800 shadow-sm p-2 flex items-center gap-2 cursor-pointer hover:shadow-md hover:bg-blue-50 dark:hover:bg-blue-900/30 transition"
         onClick={() => router.push('/student/profile')}
         title="View Profile"
+        aria-label="View Profile"
       >
-        {/* Avatar or Initials */}
         {userProfile?.photoUrl ? (
           <img
             src={userProfile.photoUrl}
@@ -212,7 +181,7 @@ function FloatingProfileButton({ userProfile }: { userProfile: any }) {
             {userProfile?.studentId || userProfile?.email || ''}
           </span>
         </div>
-      </div>
+      </button>
     </div>
   );
 }

@@ -142,9 +142,6 @@ export default function AdminFinance() {
     fetchSubjects();
   }, [newFee.studentId]);
 
-  // Debug: log studentFees when they change
-  useEffect(() => { console.log('studentFees:', studentFees); }, [studentFees]);
-
   // Fetch student names for all fees in the pending table
   useEffect(() => {
     const fetchNames = async () => {

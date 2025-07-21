@@ -9,16 +9,15 @@ import { Suspense } from 'react';
 import { motion } from 'framer-motion';
 import {animate, stagger} from 'animejs';
 import { DataLoadingProvider, useDataLoading } from '@/contexts/DataLoadingContext';
+import { NavigationProvider, useNavigation } from '@/contexts/NavigationContext';
 
-export default function FacultyLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function FacultyLayoutContent({ children }: { children: React.ReactNode }) {
   const { user, userProfile, loading } = useAuth();
   const router = useRouter();
+  const { isDataLoading } = useDataLoading();
+  const { isLoading: isNavigating } = useNavigation();
+  const isPageLoading = isDataLoading || isNavigating;
 
-  // Anime.js animations for topbar
   useEffect(() => {
     animate('.square', {
       x: '17rem',
@@ -50,36 +49,39 @@ export default function FacultyLayout({
   if (!user || userProfile?.role !== 'faculty') {
     return null;
   }
-
-  // Wrap the layout in DataLoadingProvider
+  
   return (
-    <DataLoadingProvider>
-      <div className="flex">
-        <FacultySidebar />
-        <ContentWithOverlay>{children}</ContentWithOverlay>
-      </div>
-    </DataLoadingProvider>
+    <div className="flex">
+      <FacultySidebar />
+      <motion.div
+        className="flex-1 bg-gray-50 dark:bg-gray-950 relative overflow-auto"
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        {isPageLoading && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70 backdrop-blur-sm">
+            <LoaderOverlay />
+          </div>
+        )}
+        <Suspense fallback={<div className='absolute inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70'><LoaderOverlay /></div>}>
+          {children}
+        </Suspense>
+      </motion.div>
+    </div>
   );
 }
 
-function ContentWithOverlay({ children }: { children: React.ReactNode }) {
-  const { isDataLoading } = useDataLoading();
+export default function FacultyLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <motion.div 
-      className="flex-1 bg-gray-50 dark:bg-gray-950 relative overflow-auto"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.5, delay: 0.2 }}
-    >
-      {/* Faculty Topbar */}
-      {isDataLoading && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70">
-          <LoaderOverlay />
-        </div>
-      )}
-      <Suspense fallback={<div className='absolute inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70'><LoaderOverlay /></div>}>
-        {children}
-      </Suspense>
-    </motion.div>
+    <NavigationProvider>
+      <DataLoadingProvider>
+        <FacultyLayoutContent>{children}</FacultyLayoutContent>
+      </DataLoadingProvider>
+    </NavigationProvider>
   );
 }

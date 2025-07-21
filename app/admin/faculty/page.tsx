@@ -332,7 +332,6 @@ export default function AdminFacultyPage() {
                         try {
                           let date;
               const cAt = facultyMember.createdAt;
-              console.log('facultyMember.createdAt:', cAt);
               if (cAt?.toDate) {
                 // Firestore Timestamp
                 date = cAt.toDate();

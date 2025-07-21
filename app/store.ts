@@ -553,7 +553,6 @@ export const fetchCurrentStudent = createAsyncThunk(
   'student/fetchCurrentStudent',
   async (studentId: string) => {
     const res = await fetch(`/api/student?studentId=${studentId}`);
-    console.log(res)
     if (!res.ok) throw new Error('Failed to fetch student');
     return await res.json();
   }

@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, memo, useTransition } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { LayoutDashboard, BookOpen, Calendar, Bell, TrendingUp, FileText, DollarSign, ChevronDown, Menu, X, User, LogOut, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,69 +35,59 @@ const navigation = [
 const NavigationItem = memo(({ 
   item, 
   isActive, 
-  isMobile, 
   onNavigate,
   isPending 
 }: { 
   item: any; 
   isActive: boolean; 
-  isMobile: boolean; 
   onNavigate: (href: string) => void; 
   isPending: boolean;
 }) => {
   const [isClicked, setIsClicked] = useState(false);
-  const Icon = item.icon;
   
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
+    if (isActive) return;
     setIsClicked(true);
     onNavigate(item.href);
-    
-    // Reset clicked state after animation
-    setTimeout(() => setIsClicked(false), 150);
-  }, [item.href, onNavigate]);
+    setTimeout(() => setIsClicked(false), 300);
+  }, [item.href, onNavigate, isActive]);
   
   return (
     <Link
       href={item.href}
       onClick={handleClick}
+      aria-current={isActive ? 'page' : undefined}
       className={cn(
-        'flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-150 group relative overflow-hidden',
+        'flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-150 group relative overflow-hidden w-full text-left',
         isActive || isClicked
           ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg transform scale-105'
-          : 'text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-700 dark:hover:text-blue-300 hover:scale-[1.01]',
-        isPending && 'opacity-75 pointer-events-none'
+          : 'text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-700 dark:hover:text-blue-300 hover:scale-[1.01]'
       )}
     >
-      {/* Loading indicator */}
-      {isPending && isClicked && (
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 opacity-50" />
-      )}
-      
       <motion.div
-        className={cn(
-          'p-2 rounded-lg shadow-sm transition-all',
-          isActive || isClicked
-            ? 'bg-white/20' 
-            : 'bg-white dark:bg-gray-800 group-hover:shadow-md'
-        )}
+        className={cn('p-2 rounded-lg shadow-sm transition-all', isActive || isClicked ? 'bg-white/20' : 'bg-white dark:bg-gray-800 group-hover:shadow-md')}
         whileHover={{ rotate: 5, scale: 1.1 }}
       >
-        <item.icon className={cn(
-          'h-4 w-4',
-          isActive || isClicked ? 'text-white' : item.color
-        )} />
+        <item.icon className={cn('h-4 w-4', isActive || isClicked ? 'text-white' : item.color)} aria-hidden="true" />
       </motion.div>
-      <span className="group-hover:translate-x-1 transition-transform duration-200">
-        {item.name}
-      </span>
+      <span className="group-hover:translate-x-1 transition-transform duration-200">{item.name}</span>
       {(isActive || isClicked) && (
         <motion.div
           className="ml-auto w-2 h-2 bg-white rounded-full"
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: "spring", stiffness: 500, damping: 30 }}
+          aria-hidden="true"
         />
+      )}
+      {isPending && isClicked && (
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 opacity-50 flex items-center justify-center">
+          <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
       )}
     </Link>
   );
@@ -109,58 +98,51 @@ NavigationItem.displayName = 'NavigationItem';
 const ChildNavigationItem = memo(({ 
   child, 
   isActive, 
-  isMobile, 
   onNavigate,
   isPending 
 }: { 
   child: any; 
   isActive: boolean; 
-  isMobile: boolean; 
   onNavigate: (href: string) => void; 
   isPending: boolean;
 }) => {
   const [isClicked, setIsClicked] = useState(false);
-  const Icon = child.icon;
   
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
+    if (isActive) return;
     setIsClicked(true);
     onNavigate(child.href);
-    
-    // Reset clicked state after animation
-    setTimeout(() => setIsClicked(false), 150);
-  }, [child.href, onNavigate]);
+    setTimeout(() => setIsClicked(false), 300);
+  }, [child.href, onNavigate, isActive]);
   
   return (
     <Link
       href={child.href}
       onClick={handleClick}
+      aria-current={isActive ? 'page' : undefined}
       className={cn(
-        'flex items-center gap-3 px-4 py-2 text-sm rounded-lg transition-all duration-150',
+        'flex items-center gap-3 px-4 py-2 text-sm rounded-lg transition-all duration-150 w-full text-left relative overflow-hidden',
         isActive || isClicked
           ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
-          : 'text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-700 dark:hover:text-blue-300',
-        isPending && 'opacity-75 pointer-events-none'
+          : 'text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-700 dark:hover:text-blue-300'
       )}
     >
-      {/* Loading indicator */}
-      {isPending && isClicked && (
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 opacity-50" />
-      )}
-      
       <motion.div
-        className={cn(
-          'p-1.5 rounded-md shadow-sm',
-          isActive || isClicked ? 'bg-white/20' : 'bg-white dark:bg-gray-800'
-        )}
+        className={cn('p-1.5 rounded-md shadow-sm', isActive || isClicked ? 'bg-white/20' : 'bg-white dark:bg-gray-800')}
         whileHover={{ scale: 1.1 }}
       >
-        <child.icon className={cn(
-          'h-3 w-3',
-          isActive || isClicked ? 'text-white' : child.color
-        )} />
+        <child.icon className={cn('h-3 w-3', isActive || isClicked ? 'text-white' : child.color)} aria-hidden="true" />
       </motion.div>
       <span>{child.name}</span>
+      {isPending && isClicked && (
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 opacity-50 flex items-center justify-center">
+          <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+      )}
     </Link>
   );
 });
@@ -279,38 +261,11 @@ export default function StudentSidebar({
     return () => window.removeEventListener('resize', checkMobile);
   }, [checkMobile]);
 
-  // Aggressive route prefetching
   useEffect(() => {
-    const prefetchRoutes = async () => {
-      const routes = [
-        '/student/dashboard',
-        '/student/materials',
-        '/student/timetable',
-        '/student/performance',
-        '/student/tests',
-        '/student/announcements',
-        '/student/fees',
-        '/student/fees/payments',
-        '/student/subjects'
-      ];
-      
-      // Prefetch high-priority routes immediately
-      const highPriorityRoutes = ['/student/dashboard', '/student/materials', '/student/fees'];
-      for (const route of highPriorityRoutes) {
-        router.prefetch(route);
-      }
-      
-      // Prefetch remaining routes with slight delay
-      setTimeout(() => {
-        routes.forEach(route => {
-          if (!highPriorityRoutes.includes(route)) {
-            router.prefetch(route);
-          }
-        });
-      }, 100);
-    };
-    
-    prefetchRoutes();
+    const allRoutes = navigation.flatMap(item => item.children ? item.children.map(child => child.href) : [item.href]);
+    allRoutes.forEach(href => {
+      if(href) router.prefetch(href);
+    });
   }, [router]);
 
   // Optimized navigation handler with loading overlay
@@ -366,13 +321,16 @@ export default function StudentSidebar({
           variant="outline"
           size="sm"
           onClick={toggleMobile}
+          aria-label={isOpen ? "Close menu" : "Open menu"}
+          aria-controls="student-sidebar"
+          aria-expanded={isOpen}
           className="bg-white/90 backdrop-blur-sm shadow-lg border-blue-200 hover:bg-blue-50"
         >
           <motion.div
             animate={{ rotate: isOpen ? 180 : 0 }}
             transition={{ duration: 0.3 }}
           >
-            {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {isOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
           </motion.div>
         </Button>
       </motion.div>
@@ -393,6 +351,7 @@ export default function StudentSidebar({
 
 
       <motion.aside
+        id="student-sidebar"
         className={`
           ${isMobile ? 'fixed' : 'relative'} 
           top-0 left-0 h-screen bg-gradient-to-b from-white via-blue-50/30 to-white 
@@ -413,7 +372,12 @@ export default function StudentSidebar({
         </div>
 
         {/* Navigation */}
-        <motion.nav className="flex-1 p-4 overflow-y-auto" variants={itemVariants}>
+        <motion.nav 
+          className="flex-1 p-4 overflow-y-auto" 
+          variants={itemVariants} 
+          role="navigation" 
+          aria-label="Student Navigation"
+        >
           <div className="space-y-2">
             {navigation.map((item, index) =>
               item.children ? (
@@ -425,13 +389,14 @@ export default function StudentSidebar({
                 >
                   <motion.button
                     onClick={() => toggleGroup(item.name)}
+                    aria-expanded={openGroups[item.name] || false}
+                    aria-controls={`student-sidebar-panel-${item.name.replace(/\s+/g, '-')}`}
                     className={cn(
                       'flex items-center justify-between w-full px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group',
                       'text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:scale-[1.01]'
                     )}
                     whileHover={{ scale: 1.02, x: 4 }}
                     whileTap={{ scale: 0.98 }}
-                    disabled={isPending}
                   >
                     <div className="flex items-center gap-3">
                       <motion.div
@@ -441,7 +406,7 @@ export default function StudentSidebar({
                         )}
                         whileHover={{ rotate: 5 }}
                       >
-                        <item.icon className="h-4 w-4" />
+                        <item.icon className="h-4 w-4" aria-hidden="true" />
                       </motion.div>
                       <span className="group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors">
                         {item.name}
@@ -451,13 +416,14 @@ export default function StudentSidebar({
                       animate={{ rotate: openGroups[item.name] ? 180 : 0 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <ChevronDown className="h-4 w-4" />
+                      <ChevronDown className="h-4 w-4" aria-hidden="true" />
                     </motion.div>
                   </motion.button>
                   
                   <AnimatePresence>
                     {openGroups[item.name] && (
                       <motion.div
+                        id={`student-sidebar-panel-${item.name.replace(/\s+/g, '-')}`}
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
@@ -474,7 +440,6 @@ export default function StudentSidebar({
                             <ChildNavigationItem
                               child={child}
                               isActive={isActive(child.href)}
-                              isMobile={isMobile}
                               onNavigate={handleNavigation} // <-- ensure this is handleNavigation
                               isPending={isPending}
                             />
@@ -493,7 +458,6 @@ export default function StudentSidebar({
                   <NavigationItem
                     item={item}
                     isActive={isActive(item.href)}
-                    isMobile={isMobile}
                     onNavigate={handleNavigation}
                     isPending={isPending}
                   />

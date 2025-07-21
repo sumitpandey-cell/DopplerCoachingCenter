@@ -96,7 +96,6 @@ export default function AdminFacultyEnquiries() {
           password: defaultPassword,
         });
         
-        console.log('Email sent successfully to:', enquiry.email);
       } catch (emailError) {
         console.error('Error sending email:', emailError);
         alert('Faculty ID generated successfully, but email notification failed. Please inform the faculty manually.');
